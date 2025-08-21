@@ -6,71 +6,25 @@
     <title>會議邀請產生器</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            background-color: #fff;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #222;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #555;
-        }
-        input[type="text"], input[type="date"], input[type="time"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            box-sizing: border-box; /* 確保 padding 不會影響寬度 */
-            font-size: 16px;
-        }
-        input[readonly] {
-            background-color: #e9e9e9;
-            cursor: not-allowed;
-        }
-        button {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 5px;
-            background-color: #FFC107; /* 您品牌的橘黃色 */
-            color: #333; /* 深色文字確保可讀性 */
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #ffb300;
-        }
+        /* CSS 樣式與之前相同，此處省略以節省空間... */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 500px; margin: 0 auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #222; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="date"], input[type="time"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; border: none; border-radius: 5px; background-color: #FFC107; color: #333; font-size: 18px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #ffb300; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
-
     <div class="container">
         <h1>建立會議邀請</h1>
         <form id="eventForm">
             <div class="form-group">
                 <label for="title">主旨</label>
-                <input type="text" id="title" placeholder="例如：寵心相伴｜文章討論" required>
+                <input type="text" id="title" placeholder="例如：瑪卡鎷網路行銷｜網站討論" required>
             </div>
             <div class="form-group">
                 <label for="date">日期</label>
@@ -84,143 +38,78 @@
                 <label for="endTime">結束時間</label>
                 <input type="time" id="endTime" required>
             </div>
-            <div class="form-group">
-                <label for="meetingLink">會議連結</label>
-                <input type="text" id="meetingLink" value="將由 Google 日曆自動產生" readonly>
-            </div>
-            
             <button type="button" id="submitButton">建立並傳送邀請</button>
         </form>
     </div>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // --- 步驟 1: 初始化 LIFF ---
-            // ⭐⭐⭐ 請務必更換成您自己的 LIFF ID ⭐⭐⭐
             const myLiffId = "2007968447-PQ3LQjeO";
-            
-            liff.init({ liffId: myLiffId })
-                .then(() => {
-                    console.log("LIFF 初始化成功！");
-                })
-                .catch((err) => {
-                    console.error("LIFF 初始化失敗", err);
-                    alert("LIFF 初始化失敗，請檢查 LIFF ID 是否正確或重新開啟頁面。");
-                });
-
-            // --- 監聽按鈕點擊事件 ---
-            const submitButton = document.getElementById("submitButton");
-            submitButton.addEventListener("click", createAndShareEvent);
+            liff.init({ liffId: myLiffId }).then(() => console.log("LIFF 初始化成功！")).catch(err => console.error("LIFF 初始化失敗", err));
+            document.getElementById("submitButton").addEventListener("click", createAndShareEvent);
         });
 
-        function createAndShareEvent() {
-            // --- 步驟 2: 獲取表單資料 ---
-            const title = document.getElementById('title').value;
-            const date = document.getElementById('date').value;
-            const startTime = document.getElementById('startTime').value;
-            const endTime = document.getElementById('endTime').value;
+        // ⭐⭐⭐ 主要更新的函式 ⭐⭐⭐
+        async function createAndShareEvent() {
+            const submitButton = document.getElementById('submitButton');
+            submitButton.disabled = true;
+            submitButton.textContent = '處理中...';
 
-            if (!title || !date || !startTime || !endTime) {
-                alert("請填寫所有必填欄位！");
-                return;
-            }
+            try {
+                // --- 步驟 1: 獲取表單資料 ---
+                const title = document.getElementById('title').value;
+                const date = document.getElementById('date').value;
+                const startTime = document.getElementById('startTime').value;
+                const endTime = document.getElementById('endTime').value;
 
-            // --- 步驟 3: (未來) 呼叫後端服務以建立 Google 日曆行程 ---
-            // 在我們完成後端服務之前，我們先模擬一個從後端拿到的會議連結
-            console.log("正在模擬呼叫後端建立日曆行程...");
-            const meetingLink = "https://meet.google.com/mock-link-for-now"; // 模擬的會議連結
-
-            // --- 步驟 4: 檢查 shareTargetPicker 是否可用 ---
-            if (!liff.isApiAvailable('shareTargetPicker')) {
-                alert('您的 LINE 版本不支援分享功能，請更新至最新版本。');
-                return;
-            }
-
-            // --- 步驟 5: 建立要分享的 Flex Message ---
-            // 將日期格式轉換為更易讀的格式，例如 2025/08/21 (四)
-            const eventDate = new Date(date);
-            const weekDay = ['日', '一', '二', '三', '四', '五', '六'][eventDate.getDay()];
-            const formattedDate = `${eventDate.getFullYear()}/${String(eventDate.getMonth() + 1).padStart(2, '0')}/${String(eventDate.getDate()).padStart(2, '0')} (${weekDay})`;
-            const displayTime = `${startTime} - ${endTime}`;
-
-            const flexMessage = {
-                "type": "flex",
-                "altText": `會議邀請：${title}`,
-                "contents": {
-                    "type": "bubble",
-                    "header": {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "20px",
-                        "backgroundColor": "#FFC107", // 品牌橘黃色
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": "會議預約確認",
-                                "color": "#333333",
-                                "size": "md",
-                                "weight": "bold"
-                            }
-                        ]
-                    },
-                    "body": {
-                        "type": "box",
-                        "layout": "vertical",
-                        "spacing": "md",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": title,
-                                "weight": "bold",
-                                "size": "xl",
-                                "wrap": true
-                            },
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "margin": "lg",
-                                "spacing": "sm",
-                                "contents": [
-                                    { "type": "separator" },
-                                    {
-                                        "type": "box",
-                                        "layout": "baseline",
-                                        "spacing": "sm",
-                                        "margin": "md",
-                                        "contents": [
-                                            { "type": "text", "text": "時間", "color": "#aaaaaa", "size": "sm", "flex": 2 },
-                                            { "type": "text", "text": `${formattedDate}\n${displayTime}`, "color": "#666666", "size": "sm", "flex": 5, "wrap": true }
-                                        ]
-                                    },
-                                    { "type": "separator" }
-                                ]
-                            }
-                        ]
-                    },
-                    "footer": {
-                        "type": "box",
-                        "layout": "vertical",
-                        "contents": [
-                            {
-                                "type": "button",
-                                "style": "primary",
-                                "action": { "type": "uri", "label": "開啟會議連結", "uri": meetingLink },
-                                "color": "#FFC107" // 品牌橘黃色
-                            }
-                        ]
-                    }
+                if (!title || !date || !startTime || !endTime) {
+                    throw new Error("請填寫所有必填欄位！");
                 }
-            };
-            
-            // --- 步驟 6: 呼叫 shareTargetPicker 來分享訊息 ---
-            liff.shareTargetPicker([flexMessage])
-                .then(() => {
-                    console.log("訊息分享成功");
-                    liff.closeWindow(); // 分享成功後關閉 LIFF 視窗
-                })
-                .catch((error) => {
-                    console.log("使用者取消分享或發生錯誤", error);
+
+                // --- 步驟 2: 呼叫後端 Apps Script ---
+                // ⭐⭐⭐ 請貼上您從 Apps Script 取得的網頁應用程式網址 ⭐⭐⭐
+                const gasWebAppUrl = "https://script.google.com/macros/s/AKfycbw4kF7CeepBUeKPdrJUiht8lLYnY9mhxdnyLPSNlmD9TSNiMD7X1hlt1R_nMZ5lRAzp/exec"; 
+                
+                const response = await fetch(gasWebAppUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8', },
+                    body: JSON.stringify({ title, date, startTime, endTime })
                 });
+
+                const result = await response.json();
+
+                if (result.status !== 'success') {
+                    throw new Error(`後端處理失敗: ${result.message}`);
+                }
+                
+                const meetingLink = result.meetingLink; // 從後端取得真實的會議連結
+
+                // --- 步驟 3: 建立並分享 Flex Message (與之前相同) ---
+                if (!liff.isApiAvailable('shareTargetPicker')) {
+                    throw new Error('您的 LINE 版本不支援分享功能。');
+                }
+                
+                const eventDate = new Date(date);
+                const weekDay = ['日', '一', '二', '三', '四', '五', '六'][eventDate.getDay()];
+                const formattedDate = `${eventDate.getFullYear()}/${String(eventDate.getMonth() + 1).padStart(2, '0')}/${String(eventDate.getDate()).padStart(2, '0')} (${weekDay})`;
+                const displayTime = `${startTime} - ${endTime}`;
+
+                const flexMessage = { /* Flex Message JSON 結構與之前相同 */
+                    "type": "flex", "altText": `會議邀請：${title}`, "contents": { "type": "bubble", "header": { "type": "box", "layout": "vertical", "paddingAll": "20px", "backgroundColor": "#FFC107", "contents": [{ "type": "text", "text": "會議預約確認", "color": "#333333", "size": "md", "weight": "bold" }] }, "body": { "type": "box", "layout": "vertical", "spacing": "md", "contents": [{ "type": "text", "text": title, "weight": "bold", "size": "xl", "wrap": true }, { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [{ "type": "separator" }, { "type": "box", "layout": "baseline", "spacing": "sm", "margin": "md", "contents": [{ "type": "text", "text": "時間", "color": "#aaaaaa", "size": "sm", "flex": 2 }, { "type": "text", "text": `${formattedDate}\n${displayTime}`, "color": "#666666", "size": "sm", "flex": 5, "wrap": true }] }, { "type": "separator" }] }] }, "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "style": "primary", "action": { "type": "uri", "label": "開啟會議連結", "uri": meetingLink }, "color": "#FFC107" }] } }
+                };
+                
+                await liff.shareTargetPicker([flexMessage]);
+                liff.closeWindow();
+
+            } catch (error) {
+                alert(error.message);
+                console.error("發生錯誤:", error);
+            } finally {
+                // 無論成功或失敗，都恢復按鈕狀態
+                submitButton.disabled = false;
+                submitButton.textContent = '建立並傳送邀請';
+            }
         }
     </script>
 </body>
