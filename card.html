@@ -4,84 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>MaKarma 個人名片</title>
-    <script src="https://jsconsole.com/remote.js?hsulala-card-test"></script>
     <style>
-        :root {
-            --primary-color: #F39800; 
-            --background-color: #f9f9f9;
-            --text-color: #333;
-            --form-bg-color: #ffffff;
-            --border-color: #e0e0e0;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            margin: 0; padding: 20px; display: flex;
-            justify-content: center; align-items: flex-start;
-            min-height: 100vh;
-        }
-        .container {
-            width: 100%; max-width: 500px;
-            background-color: var(--form-bg-color);
-            padding: 25px 30px; border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-        h1 {
-            text-align: center; color: var(--text-color);
-            margin-bottom: 25px; font-size: 1.5em;
-        }
+        :root { --primary-color: #F39800; --background-color: #f9f9f9; --text-color: #333; --form-bg-color: #ffffff; --border-color: #e0e0e0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; background-color: var(--background-color); color: var(--text-color); }
+        .container { width: 100%; max-width: 500px; background-color: var(--form-bg-color); padding: 25px 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+        h1 { text-align: center; color: var(--text-color); margin-bottom: 25px; font-size: 1.5em; }
         .form-group { margin-bottom: 20px; }
-        .form-group label {
-            display: block; margin-bottom: 8px;
-            font-weight: 600; font-size: 0.9em;
-        }
-        .form-group input {
-            width: 100%; padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px; box-sizing: border-box; font-size: 1em;
-            transition: border-color 0.3s;
-        }
-        .form-group input:focus { outline: none; border-color: var(--primary-color); }
-        .share-button {
-            width: 100%; padding: 15px; background-color: var(--primary-color);
-            color: white; border: none; border-radius: 8px;
-            font-size: 1.1em; font-weight: bold; cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .share-button:hover { opacity: 0.9; }
-        .share-button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
-        #status-message {
-            text-align: center; margin-top: 15px;
-            color: #666; display: none;
-        }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9em; }
+        input { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1em; }
+        input:focus { outline: none; border-color: var(--primary-color); }
+        button { width: 100%; padding: 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; }
+        button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        #status-message { text-align: center; margin-top: 15px; color: #666; display: none; }
     </style>
 </head>
 <body>
-
     <div class="container">
         <h1>MaKarma 個人名片</h1>
         <form id="card-form">
-            <div class="form-group">
-                <label for="name">姓名</label>
-                <input type="text" id="name" placeholder="例如：徐昀" required>
-            </div>
-            <div class="form-group">
-                <label for="englishName">英文姓名</label>
-                <input type="text" id="englishName" placeholder="例如：ULY HSU" required>
-            </div>
-            <div class="form-group">
-                <label for="title">職稱</label>
-                <input type="text" id="title" placeholder="例如：行銷專員" required>
-            </div>
-            <div class="form-group">
-                <label for="mobile">手機</label>
-                <input type="tel" id="mobile" placeholder="例如：0903-966-225" required>
-            </div>
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" placeholder="例如：yunshyu@gmail.com" required>
-            </div>
+            <div class="form-group"><label for="name">姓名</label><input type="text" id="name" placeholder="例如：徐昀" required></div>
+            <div class="form-group"><label for="englishName">英文姓名</label><input type="text" id="englishName" placeholder="例如：ULY HSU" required></div>
+            <div class="form-group"><label for="title">職稱</label><input type="text" id="title" placeholder="例如：行銷專員" required></div>
+            <div class="form-group"><label for="mobile">手機</label><input type="tel" id="mobile" placeholder="例如：0903-966-225" required></div>
+            <div class="form-group"><label for="email">Email</label><input type="email" id="email" placeholder="例如：yunshyu@gmail.com" required></div>
         </form>
         <button id="share-button" class="share-button" disabled>LIFF 初始化中...</button>
         <p id="status-message"></p>
@@ -89,13 +34,9 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        // ===================================================================
-        const YOUR_LIFF_ID = "2007968447-L1XqQgMW"; 
+        const LIFF_ID = "2007968447-L1XqQgMW";
         const LOGO_URL = "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png";
         const WEBSITE_URL = "https://www.makarma.com.tw/";
-        // ===================================================================
-        
-        console.log("1. 頁面載入，JavaScript 開始執行。");
 
         const nameInput = document.getElementById('name');
         const englishNameInput = document.getElementById('englishName');
@@ -104,35 +45,22 @@
         const emailInput = document.getElementById('email');
         const shareButton = document.getElementById('share-button');
         const statusMessage = document.getElementById('status-message');
-        const LOCAL_STORAGE_KEY = 'maKarmaCardData_v4';
+        const LOCAL_STORAGE_KEY = 'maKarmaCardData_vFinal';
 
         async function main() {
             try {
-                console.log("2. 進入 main 函式，準備初始化 LIFF...");
-                console.log("3. 使用的 LIFF ID 是:", YOUR_LIFF_ID);
-                await liff.init({ liffId: YOUR_LIFF_ID });
-                console.log("4. LIFF 初始化成功！");
-
-                if (!liff.isLoggedIn()) {
-                    console.warn("警告：使用者未登入 LINE 或在外部瀏覽器。");
-                    statusMessage.innerText = "請在 LINE App 內開啟";
-                    shareButton.disabled = true;
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isInClient()) {
+                    statusMessage.innerText = "請在 LINE App 內開啟此頁面";
+                    statusMessage.style.display = 'block';
                     return;
                 }
-                
-                console.log("5. 使用者已登入。");
-                statusMessage.style.display = 'none';
                 shareButton.innerText = '產生並分享名片';
                 shareButton.disabled = false;
                 loadData();
                 shareButton.addEventListener('click', shareCard);
-
             } catch (error) {
-                console.error("！！！LIFF 初始化過程中發生嚴重錯誤！！！");
-                console.error("錯誤名稱:", error.name);
-                console.error("錯誤訊息:", error.message);
-                console.error("完整錯誤物件:", JSON.stringify(error));
-                statusMessage.innerText = "LIFF 初始化失敗，請檢查 Console。";
+                alert(`LIFF 初始化失敗：\n${error.name}\n${error.message}`);
             }
         }
 
@@ -140,54 +68,36 @@
             const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedData) {
                 const data = JSON.parse(savedData);
-                nameInput.value = data.name || '';
-                englishNameInput.value = data.englishName || '';
-                titleInput.value = data.title || '';
-                mobileInput.value = data.mobile || '';
+                nameInput.value = data.name || ''; englishNameInput.value = data.englishName || '';
+                titleInput.value = data.title || ''; mobileInput.value = data.mobile || '';
                 emailInput.value = data.email || '';
-            } else {
-                liff.getProfile().then(profile => {
-                    nameInput.value = profile.displayName;
-                }).catch(err => console.error('getProfile 失敗', err));
+            } else if (liff.isLoggedIn()) {
+                liff.getProfile().then(profile => { nameInput.value = profile.displayName; })
+                .catch(err => alert(`讀取個人資料失敗：${err.message}`));
             }
         }
 
         async function shareCard() {
-            console.log("A. 分享按鈕被點擊了。");
-            if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value) {
-                console.error("錯誤：表單欄位未填寫完整。");
-                alert('請填寫所有欄位！'); 
-                return;
-            }
             try {
-                const data = saveData();
-                console.log("B. 表單資料已儲存:", JSON.stringify(data));
                 if (!liff.isApiAvailable('shareTargetPicker')) {
-                    console.error("錯誤：shareTargetPicker API 無法使用。");
-                    alert('您的 LINE 版本不支援此功能，請更新至最新版。'); 
-                    return;
+                    alert('您的 LINE 版本不支援此功能。'); return;
                 }
-                console.log("C. ShareTargetPicker API 確認可用。");
+                const data = saveData();
+                if (!data) return; // saveData will alert if validation fails
                 const flexMessage = createFlexMessage(data);
-                console.log("D. Flex Message 已成功建立。");
-                console.log("E. 即將呼叫 liff.shareTargetPicker...");
-                await liff.shareTargetPicker([flexMessage]); 
-                console.log("F. liff.shareTargetPicker 呼叫完成。");
+                await liff.shareTargetPicker([flexMessage]);
             } catch (error) {
-                console.error("！！！在分享過程中發生了嚴重錯誤！！！");
-                console.error("錯誤名稱:", error.name);
-                console.error("錯誤訊息:", error.message);
-                console.error("完整錯誤物件:", JSON.stringify(error));
-                alert(`分享失敗，錯誤訊息：${error.message}`);
+                alert(`分享失敗：\n${error.name}\n${error.message}`);
             }
         }
 
         function saveData() {
-             const data = {
-                name: nameInput.value.trim(),
-                englishName: englishNameInput.value.trim(),
-                title: titleInput.value.trim(),
-                mobile: mobileInput.value.trim(),
+            if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value) {
+                alert('請填寫所有欄位！'); return null;
+            }
+            const data = {
+                name: nameInput.value.trim(), englishName: englishNameInput.value.trim(),
+                title: titleInput.value.trim(), mobile: mobileInput.value.trim(),
                 email: emailInput.value.trim(),
             };
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
@@ -195,68 +105,9 @@
         }
 
         function createFlexMessage(data) {
-            return {
-              "type": "flex",
-              "altText": `${data.name} 的個人名片 - MaKarma`,
-              "contents": {
-                "type": "bubble",
-                "size": "giga",
-                "body": {
-                  "type": "box",
-                  "layout": "horizontal",
-                  "paddingAll": "0px",
-                  "contents": [
-                    {
-                      "type": "box",
-                      "layout": "vertical",
-                      "paddingAll": "20px",
-                      "flex": 4,
-                      "contents": [
-                        { "type": "image", "url": LOGO_URL, "aspectMode": "fit", "size": "70%", "align": "start" },
-                        { "type": "spacer", "size": "xxl" },
-                        { "type": "spacer", "size": "xxl" },
-                        { "type": "text", "text": data.title, "size": "sm", "color": "#666666" },
-                        { "type": "text", "text": data.name, "size": "lg", "weight": "bold", "margin": "sm", "color": "#F39800" },
-                        { "type": "text", "text": data.englishName, "size": "md", "color": "#333333", "margin": "sm" }
-                      ]
-                    },
-                    {
-                      "type": "box",
-                      "layout": "vertical",
-                      "paddingAll": "20px",
-                      "flex": 6,
-                      "contents": [
-                        { "type": "text", "text": "MaKarma", "weight": "bold", "size": "md" },
-                        { "type": "text", "text": "瑪卡鑑網路行銷", "size": "sm", "color": "#555555", "margin": "xs" },
-                        { "type": "separator", "margin": "lg" },
-                        {
-                          "type": "box",
-                          "layout": "vertical",
-                          "margin": "lg",
-                          "spacing": "md",
-                          "contents": [
-                            { "type": "text", "text": `📞 ${data.mobile}`, "size": "sm" },
-                            { "type": "text", "text": `✉️ ${data.email}`, "size": "sm" }
-                          ]
-                        },
-                        { "type": "separator", "margin": "lg" },
-                        { "type": "text", "text": "SEO優化｜網站設計製作｜社群代操｜數位廣告投放｜網紅資源媒合｜口碑行銷｜短影音製作拍攝", "wrap": true, "size": "xxs", "margin": "lg", "color": "#888888" }
-                      ]
-                    }
-                  ]
-                },
-                "footer": {
-                  "type": "box",
-                  "layout": "vertical",
-                  "contents": [
-                    { "type": "button", "style": "link", "height": "sm", "color": "#F39800", "action": { "type": "uri", "label": "前往官方網站", "uri": WEBSITE_URL } }
-                  ]
-                }
-              }
-            };
+            return { "type": "flex", "altText": `${data.name} 的個人名片 - MaKarma`, "contents": { "type": "bubble", "size": "giga", "body": { "type": "box", "layout": "horizontal", "paddingAll": "0px", "contents": [ { "type": "box", "layout": "vertical", "paddingAll": "20px", "flex": 4, "contents": [ { "type": "image", "url": LOGO_URL, "aspectMode": "fit", "size": "70%", "align": "start" }, { "type": "spacer", "size": "xxl" }, { "type": "spacer", "size": "xxl" }, { "type": "text", "text": data.title, "size": "sm", "color": "#666666" }, { "type": "text", "text": data.name, "size": "lg", "weight": "bold", "margin": "sm", "color": "#F39800" }, { "type": "text", "text": data.englishName, "size": "md", "color": "#333333", "margin": "sm" } ] }, { "type": "box", "layout": "vertical", "paddingAll": "20px", "flex": 6, "contents": [ { "type": "text", "text": "MaKarma", "weight": "bold", "size": "md" }, { "type": "text", "text": "瑪卡鑑網路行銷", "size": "sm", "color": "#555555", "margin": "xs" }, { "type": "separator", "margin": "lg" }, { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "md", "contents": [ { "type": "text", "text": `📞 ${data.mobile}`, "size": "sm" }, { "type": "text", "text": `✉️ ${data.email}`, "size": "sm" } ] }, { "type": "separator", "margin": "lg" }, { "type": "text", "text": "SEO優化｜網站設計製作｜社群代操｜數位廣告投放｜網紅資源媒合｜口碑行銷｜短影音製作拍攝", "wrap": true, "size": "xxs", "margin": "lg", "color": "#888888" } ] } ] }, "footer": { "type": "box", "layout": "vertical", "contents": [ { "type": "button", "style": "link", "height": "sm", "color": "#F39800", "action": { "type": "uri", "label": "前往官方網站", "uri": WEBSITE_URL } } ] } } };
         }
 
-        // 執行主程式
         main();
     </script>
 </body>
