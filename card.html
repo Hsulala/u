@@ -25,8 +25,9 @@
             <div class="form-group"><label for="name">姓名</label><input type="text" id="name" placeholder="例如：徐昀" required></div>
             <div class="form-group"><label for="englishName">英文姓名</label><input type="text" id="englishName" placeholder="例如：ULY HSU" required></div>
             <div class="form-group"><label for="title">職稱</label><input type="text" id="title" placeholder="例如：行銷專員" required></div>
-            <div class="form-group"><label for="mobile">手機</label><input type="tel" id="mobile" placeholder="例如：0903-966-225" required></div>
+            <div class="form-group"><label for="mobile">手機</label><input type="tel" id="mobile" placeholder="例如：0903966225" required></div>
             <div class="form-group"><label for="email">Email</label><input type="email" id="email" placeholder="例如：yunshyu@gmail.com" required></div>
+            <div class="form-group"><label for="lineId">LINE ID</label><input type="text" id="lineId" placeholder="例如：yunshyu" required></div>
         </form>
         <button id="share-button" class="share-button" disabled>LIFF 初始化中...</button>
         <p id="status-message"></p>
@@ -34,15 +35,28 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
+        // ===================================================================
+        // == 請務必修改此區塊的設定 ==
+        // ===================================================================
         const LIFF_ID = "2007968447-L1XqQgMW";
+
+        // 【圖片網址】請確保這些圖片是公開存取的網址
         const LOGO_URL = "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png";
+        const PHONE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/phone.png"; // 電話圖示 (請換成您的圖片網址)
+        const EMAIL_ICON_URL = "hhttps://raw.githubusercontent.com/Hsulala/u/main/mail.png"; // Email 圖示 (請換成您的圖片網址)
+        const LINE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/lineid.png";  // LINE 圖示 (請換成您的圖片網址)
+
+        // 【連結網址】
         const WEBSITE_URL = "https://www.makarma.com.tw/";
+        const PERFORMANCE_URL = "https://sites.google.com/view/makamaseo/%E9%A6%96%E9%A0%81"; // 請換成您的成效展示頁網址
+        // ===================================================================
 
         const nameInput = document.getElementById('name');
         const englishNameInput = document.getElementById('englishName');
         const titleInput = document.getElementById('title');
         const mobileInput = document.getElementById('mobile');
         const emailInput = document.getElementById('email');
+        const lineIdInput = document.getElementById('lineId');
         const shareButton = document.getElementById('share-button');
         const statusMessage = document.getElementById('status-message');
         const LOCAL_STORAGE_KEY = 'maKarmaCardData_vFinal';
@@ -70,7 +84,7 @@
                 const data = JSON.parse(savedData);
                 nameInput.value = data.name || ''; englishNameInput.value = data.englishName || '';
                 titleInput.value = data.title || ''; mobileInput.value = data.mobile || '';
-                emailInput.value = data.email || '';
+                emailInput.value = data.email || ''; lineIdInput.value = data.lineId || '';
             } else if (liff.isLoggedIn()) {
                 liff.getProfile().then(profile => { nameInput.value = profile.displayName; })
                 .catch(err => alert(`讀取個人資料失敗：${err.message}`));
@@ -83,7 +97,7 @@
                     alert('您的 LINE 版本不支援此功能。'); return;
                 }
                 const data = saveData();
-                if (!data) return; // saveData will alert if validation fails
+                if (!data) return;
                 const flexMessage = createFlexMessage(data);
                 await liff.shareTargetPicker([flexMessage]);
             } catch (error) {
@@ -92,20 +106,20 @@
         }
 
         function saveData() {
-            if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value) {
+            if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value || !lineIdInput.value) {
                 alert('請填寫所有欄位！'); return null;
             }
             const data = {
                 name: nameInput.value.trim(), englishName: englishNameInput.value.trim(),
                 title: titleInput.value.trim(), mobile: mobileInput.value.trim(),
-                email: emailInput.value.trim(),
+                email: emailInput.value.trim(), lineId: lineIdInput.value.trim(),
             };
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
             return data;
         }
 
         function createFlexMessage(data) {
-            return { "type": "flex", "altText": `${data.name} 的個人名片 - MaKarma`, "contents": { "type": "bubble", "size": "giga", "body": { "type": "box", "layout": "horizontal", "paddingAll": "0px", "contents": [ { "type": "box", "layout": "vertical", "paddingAll": "20px", "flex": 4, "contents": [ { "type": "image", "url": LOGO_URL, "aspectMode": "fit", "size": "70%", "align": "start" }, { "type": "spacer", "size": "xxl" }, { "type": "spacer", "size": "xxl" }, { "type": "text", "text": data.title, "size": "sm", "color": "#666666" }, { "type": "text", "text": data.name, "size": "lg", "weight": "bold", "margin": "sm", "color": "#F39800" }, { "type": "text", "text": data.englishName, "size": "md", "color": "#333333", "margin": "sm" } ] }, { "type": "box", "layout": "vertical", "paddingAll": "20px", "flex": 6, "contents": [ { "type": "text", "text": "MaKarma", "weight": "bold", "size": "md" }, { "type": "text", "text": "瑪卡鑑網路行銷", "size": "sm", "color": "#555555", "margin": "xs" }, { "type": "separator", "margin": "lg" }, { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "md", "contents": [ { "type": "text", "text": `📞 ${data.mobile}`, "size": "sm" }, { "type": "text", "text": `✉️ ${data.email}`, "size": "sm" } ] }, { "type": "separator", "margin": "lg" }, { "type": "text", "text": "SEO優化｜網站設計製作｜社群代操｜數位廣告投放｜網紅資源媒合｜口碑行銷｜短影音製作拍攝", "wrap": true, "size": "xxs", "margin": "lg", "color": "#888888" } ] } ] }, "footer": { "type": "box", "layout": "vertical", "contents": [ { "type": "button", "style": "link", "height": "sm", "color": "#F39800", "action": { "type": "uri", "label": "前往官方網站", "uri": WEBSITE_URL } } ] } } };
+            return { "type": "flex", "altText": `${data.name} 的個人名片 - MaKarma`, "contents": { "type": "bubble", "size": "giga", "body": { "type": "box", "layout": "horizontal", "paddingAll": "0px", "contents": [ { "type": "box", "layout": "vertical", "paddingAll": "20px", "flex": 3, "contents": [ { "type": "image", "url": LOGO_URL, "aspectMode": "fit", "size": "80%", "align": "start" }, { "type": "text", "text": data.title, "size": "sm", "color": "#666666", "wrap": true, "margin": "xxl" }, { "type": "text", "text": data.name, "size": "lg", "weight": "bold", "margin": "sm", "color": "#F39800", "wrap": true }, { "type": "text", "text": data.englishName, "size": "md", "color": "#333333", "margin": "sm", "wrap": true } ] }, { "type": "box", "layout": "vertical", "paddingAll": "20px", "flex": 7, "contents": [ { "type": "text", "text": "MaKarma", "weight": "bold", "size": "md" }, { "type": "text", "text": "瑪卡鑑網路行銷", "size": "sm", "color": "#555555", "margin": "xs" }, { "type": "separator", "margin": "lg" }, { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "md", "contents": [ { "type": "box", "layout": "horizontal", "alignItems": "center", "contents": [ { "type": "image", "url": PHONE_ICON_URL, "size": "xs", "flex": 0 }, { "type": "text", "text": data.mobile, "margin": "md", "size": "sm" } ] }, { "type": "box", "layout": "horizontal", "alignItems": "center", "contents": [ { "type": "image", "url": EMAIL_ICON_URL, "size": "xs", "flex": 0 }, { "type": "text", "text": data.email, "margin": "md", "size": "sm" } ] }, { "type": "box", "layout": "horizontal", "alignItems": "center", "contents": [ { "type": "image", "url": LINE_ICON_URL, "size": "xs", "flex": 0 }, { "type": "text", "text": data.lineId, "margin": "md", "size": "sm" } ] } ] }, { "type": "separator", "margin": "lg" }, { "type": "text", "text": "SEO優化｜網站設計製作｜Google商家管理", "wrap": true, "size": "xs", "margin": "xxl", "color": "#888888", "lineSpacing": "4px" } ] } ] }, "footer": { "type": "box", "layout": "vertical", "spacing": "sm", "contents": [ { "type": "button", "style": "link", "height": "sm", "color": "#F39800", "action": { "type": "uri", "label": "成效展示頁", "uri": PERFORMANCE_URL } }, { "type": "separator" }, { "type": "button", "style": "link", "height": "sm", "color": "#F39800", "action": { "type": "uri", "label": "前往官方網站", "uri": WEBSITE_URL } } ] } } };
         }
 
         main();
