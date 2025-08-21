@@ -6,7 +6,6 @@
     <title>會議邀請產生器</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        /* CSS 樣式與之前相同，此處省略以節省空間... */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }
         .container { max-width: 500px; margin: 0 auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { text-align: center; color: #222; }
@@ -14,7 +13,6 @@
         label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
         input[type="text"], input[type="date"], input[type="time"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
         button { width: 100%; padding: 15px; border: none; border-radius: 5px; background-color: #FFC107; color: #333; font-size: 18px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
-        button:hover { background-color: #ffb300; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
     </style>
 </head>
@@ -31,12 +29,12 @@
                 <input type="date" id="date" required>
             </div>
             <div class="form-group">
-                <label for="startTime">開始時間</label>
-                <input type="time" id="startTime" required>
+                <label for="startTime">開始時間 (會議時長預設為 1 小時)</label>
+                <input type="time" id="startTime" required min="08:00" max="22:00" step="1800">
             </div>
             <div class="form-group">
-                <label for="endTime">結束時間</label>
-                <input type="time" id="endTime" required>
+                <label for="location">地點 (留空則為線上會議)</label>
+                <input type="text" id="location" placeholder="請輸入會議地點">
             </div>
             <button type="button" id="submitButton">建立並傳送邀請</button>
         </form>
@@ -44,12 +42,35 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
+            // --- 初始化與預設值設定 ---
             const myLiffId = "2007968447-PQ3LQjeO";
             liff.init({ liffId: myLiffId }).then(() => console.log("LIFF 初始化成功！")).catch(err => console.error("LIFF 初始化失敗", err));
+            
+            setDefaultTime();
+
             document.getElementById("submitButton").addEventListener("click", createAndShareEvent);
         });
 
-        // ⭐⭐⭐ 主要更新的函式 ⭐⭐⭐
+        function setDefaultTime() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+
+            if (minutes < 30) {
+                minutes = 30;
+            } else {
+                minutes = 0;
+                hours += 1;
+            }
+            
+            if (hours >= 24) { // 處理跨日情況
+                hours = 0;
+            }
+
+            const defaultTime = ('0' + hours).slice(-2) + ':' + ('0' + minutes).slice(-2);
+            document.getElementById('startTime').value = defaultTime;
+        }
+
         async function createAndShareEvent() {
             const submitButton = document.getElementById('submitButton');
             submitButton.disabled = true;
@@ -60,45 +81,74 @@
                 const title = document.getElementById('title').value;
                 const date = document.getElementById('date').value;
                 const startTime = document.getElementById('startTime').value;
-                const endTime = document.getElementById('endTime').value;
+                const location = document.getElementById('location').value.trim();
 
-                if (!title || !date || !startTime || !endTime) {
-                    throw new Error("請填寫所有必填欄位！");
+                const startDateTime = new Date(`${date}T${startTime}`);
+                startDateTime.setHours(startDateTime.getHours() + 1);
+                const endTime = ('0' + startDateTime.getHours()).slice(-2) + ':' + ('0' + startDateTime.getMinutes()).slice(-2);
+
+                if (!title || !date || !startTime) {
+                    throw new Error("請填寫主旨、日期與時間！");
                 }
-
+                
                 // --- 步驟 2: 呼叫後端 Apps Script ---
-                // ⭐⭐⭐ 請貼上您從 Apps Script 取得的網頁應用程式網址 ⭐⭐⭐
-                const gasWebAppUrl = "https://script.google.com/macros/s/AKfycbw4kF7CeepBUeKPdrJUiht8lLYnY9mhxdnyLPSNlmD9TSNiMD7X1hlt1R_nMZ5lRAzp/exec"; 
+                const gasWebAppUrl = "https://script.google.com/macros/s/AKfycbw4kF7CeepBUeKPdrJUiht8lLYnY9mhxdnyLPSNlmD9TSNiMD7X1hlt1R_nMZ5lRAzp/exec";
                 
                 const response = await fetch(gasWebAppUrl, {
                     method: 'POST',
                     mode: 'cors',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8', },
-                    body: JSON.stringify({ title, date, startTime, endTime })
+                    body: JSON.stringify({ title, date, startTime, endTime, location })
                 });
 
                 const result = await response.json();
-
-                if (result.status !== 'success') {
-                    throw new Error(`後端處理失敗: ${result.message}`);
-                }
+                if (result.status !== 'success') throw new Error(`後端處理失敗: ${result.message}`);
                 
-                const meetingLink = result.meetingLink; // 從後端取得真實的會議連結
-
-                // --- 步驟 3: 建立並分享 Flex Message (與之前相同) ---
-                if (!liff.isApiAvailable('shareTargetPicker')) {
-                    throw new Error('您的 LINE 版本不支援分享功能。');
-                }
+                const meetingLink = result.meetingLink;
+                
+                // --- 步驟 3: 動態建立並分享 Flex Message ---
+                if (!liff.isApiAvailable('shareTargetPicker')) throw new Error('您的 LINE 版本不支援分享功能。');
                 
                 const eventDate = new Date(date);
                 const weekDay = ['日', '一', '二', '三', '四', '五', '六'][eventDate.getDay()];
                 const formattedDate = `${eventDate.getFullYear()}/${String(eventDate.getMonth() + 1).padStart(2, '0')}/${String(eventDate.getDate()).padStart(2, '0')} (${weekDay})`;
                 const displayTime = `${startTime} - ${endTime}`;
 
-                const flexMessage = { /* Flex Message JSON 結構與之前相同 */
-                    "type": "flex", "altText": `會議邀請：${title}`, "contents": { "type": "bubble", "header": { "type": "box", "layout": "vertical", "paddingAll": "20px", "backgroundColor": "#FFC107", "contents": [{ "type": "text", "text": "會議預約確認", "color": "#333333", "size": "md", "weight": "bold" }] }, "body": { "type": "box", "layout": "vertical", "spacing": "md", "contents": [{ "type": "text", "text": title, "weight": "bold", "size": "xl", "wrap": true }, { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [{ "type": "separator" }, { "type": "box", "layout": "baseline", "spacing": "sm", "margin": "md", "contents": [{ "type": "text", "text": "時間", "color": "#aaaaaa", "size": "sm", "flex": 2 }, { "type": "text", "text": `${formattedDate}\n${displayTime}`, "color": "#666666", "size": "sm", "flex": 5, "wrap": true }] }, { "type": "separator" }] }] }, "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "style": "primary", "action": { "type": "uri", "label": "開啟會議連結", "uri": meetingLink }, "color": "#FFC107" }] } }
-                };
+                // 動態建立 Body 和 Footer
+                const bodyContents = [
+                    { "type": "text", "text": title, "weight": "bold", "size": "xl", "wrap": true },
+                    { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
+                        { "type": "separator" },
+                        { "type": "box", "layout": "baseline", "spacing": "sm", "margin": "md", "contents": [
+                            { "type": "text", "text": "時間", "color": "#aaaaaa", "size": "sm", "flex": 2 },
+                            { "type": "text", "text": `${formattedDate}\n${displayTime}`, "color": "#666666", "size": "sm", "flex": 5, "wrap": true }
+                        ]}
+                    ]}
+                ];
+
+                let footerContents = [];
+
+                if (!location && meetingLink) { // 線上會議
+                    footerContents.push({ "type": "button", "style": "primary", "action": { "type": "uri", "label": "開啟會議連結", "uri": meetingLink }, "color": "#FFC107" });
+                } else { // 實體地點
+                    bodyContents[1].contents.push(
+                        { "type": "separator" },
+                        { "type": "box", "layout": "baseline", "spacing": "sm", "margin": "md", "contents": [
+                            { "type": "text", "text": "地點", "color": "#aaaaaa", "size": "sm", "flex": 2 },
+                            { "type": "text", "text": location, "color": "#666666", "size": "sm", "flex": 5, "wrap": true }
+                        ]}
+                    );
+                }
                 
+                const flexMessage = {
+                    "type": "flex", "altText": `會議邀請：${title}`, "contents": {
+                        "type": "bubble",
+                        "header": { "type": "box", "layout": "vertical", "paddingAll": "20px", "backgroundColor": "#FFC107", "contents": [{ "type": "text", "text": "會議預約確認", "color": "#333333", "size": "md", "weight": "bold" }] },
+                        "body": { "type": "box", "layout": "vertical", "spacing": "md", "contents": bodyContents },
+                        "footer": footerContents.length > 0 ? { "type": "box", "layout": "vertical", "spacing":"sm", "contents": footerContents } : undefined
+                    }
+                };
+
                 await liff.shareTargetPicker([flexMessage]);
                 liff.closeWindow();
 
@@ -106,7 +156,6 @@
                 alert(error.message);
                 console.error("發生錯誤:", error);
             } finally {
-                // 無論成功或失敗，都恢復按鈕狀態
                 submitButton.disabled = false;
                 submitButton.textContent = '建立並傳送邀請';
             }
