@@ -92,18 +92,18 @@
         }
 
         async function shareCard() {
-            try {
-                if (!liff.isApiAvailable('shareTargetPicker')) {
-                    alert('您的 LINE 版本不支援此功能。'); return;
-                }
-                const data = saveData();
-                if (!data) return;
-                const flexMessage = createFlexMessage(data);
-                await liff.shareTargetPicker([flexMessage]);
-            } catch (error) {
-                alert(`分享失敗：\n${error.name}\n${error.message}`);
+    try {
+        alert("準備分享一個簡單的測試訊息..."); // 看看這個視窗會不會跳出來
+        await liff.shareTargetPicker([
+            {
+                type: 'text',
+                text: '這是一個測試訊息，如果能分享這個，代表問題出在名片設計上。'
             }
-        }
+        ]);
+    } catch (error) {
+        alert(`分享失敗：\n${error.message}`);
+    }
+}
 
         function saveData() {
             if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value || !lineIdInput.value) {
