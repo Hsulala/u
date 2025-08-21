@@ -91,19 +91,25 @@
             }
         }
 
-        async function shareCard() {
-    try {
-        alert("準備分享一個簡單的測試訊息..."); // 看看這個視窗會不會跳出來
-        await liff.shareTargetPicker([
-            {
-                type: 'text',
-                text: '這是一個測試訊息，如果能分享這個，代表問題出在名片設計上。'
-            }
-        ]);
-    } catch (error) {
-        alert(`分享失敗：\n${error.message}`);
-    }
-}
+async function shareCard() {
+        // 1. 取得使用者輸入的資料
+        const data = saveData();
+        if (!data) {
+            return; // 如果資料不完整，就終止
+        }
+
+        try {
+            // 2. 用這些資料來建立 Flex Message
+            const flexMessage = createFlexMessage(data);
+
+            // 3. 呼叫 liff.shareTargetPicker 並傳入完整的 Flex Message
+            await liff.shareTargetPicker([
+                flexMessage
+            ]);
+        } catch (error) {
+            alert(`分享失敗：\n${error.name}\n${error.message}`);
+        }
+    }
 
         function saveData() {
             if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value || !lineIdInput.value) {
@@ -119,8 +125,205 @@
         }
 
         function createFlexMessage(data) {
-            return { "type": "flex", "altText": `${data.name} 的個人名片 - MaKarma`, "contents": { "type": "bubble", "size": "giga", "body": { "type": "box", "layout": "horizontal", "paddingAll": "0px", "contents": [ { "type": "box", "layout": "vertical", "paddingAll": "20px", "flex": 3, "contents": [ { "type": "image", "url": LOGO_URL, "aspectMode": "fit", "size": "80%", "align": "start" }, { "type": "text", "text": data.title, "size": "sm", "color": "#666666", "wrap": true, "margin": "xxl" }, { "type": "text", "text": data.name, "size": "lg", "weight": "bold", "margin": "sm", "color": "#F39800", "wrap": true }, { "type": "text", "text": data.englishName, "size": "md", "color": "#333333", "margin": "sm", "wrap": true } ] }, { "type": "box", "layout": "vertical", "paddingAll": "20px", "flex": 7, "contents": [ { "type": "text", "text": "MaKarma", "weight": "bold", "size": "md" }, { "type": "text", "text": "瑪卡鑑網路行銷", "size": "sm", "color": "#555555", "margin": "xs" }, { "type": "separator", "margin": "lg" }, { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "md", "contents": [ { "type": "box", "layout": "horizontal", "alignItems": "center", "contents": [ { "type": "image", "url": PHONE_ICON_URL, "size": "xs", "flex": 0 }, { "type": "text", "text": data.mobile, "margin": "md", "size": "sm" } ] }, { "type": "box", "layout": "horizontal", "alignItems": "center", "contents": [ { "type": "image", "url": EMAIL_ICON_URL, "size": "xs", "flex": 0 }, { "type": "text", "text": data.email, "margin": "md", "size": "sm" } ] }, { "type": "box", "layout": "horizontal", "alignItems": "center", "contents": [ { "type": "image", "url": LINE_ICON_URL, "size": "xs", "flex": 0 }, { "type": "text", "text": data.lineId, "margin": "md", "size": "sm" } ] } ] }, { "type": "separator", "margin": "lg" }, { "type": "text", "text": "SEO優化｜網站設計製作｜Google商家管理", "wrap": true, "size": "xs", "margin": "xxl", "color": "#888888", "lineSpacing": "4px" } ] } ] }, "footer": { "type": "box", "layout": "vertical", "spacing": "sm", "contents": [ { "type": "button", "style": "link", "height": "sm", "color": "#F39800", "action": { "type": "uri", "label": "成效展示頁", "uri": PERFORMANCE_URL } }, { "type": "separator" }, { "type": "button", "style": "link", "height": "sm", "color": "#F39800", "action": { "type": "uri", "label": "前往官方網站", "uri": WEBSITE_URL } } ] } } };
+    return {
+      "type": "flex",
+      "altText": `${data.name} 的個人名片 - MaKarma`,
+      "contents": {
+        "type": "bubble",
+        "size": "giga",
+        "body": {
+          "type": "box",
+          "layout": "horizontal",
+          "paddingAll": "0px",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "paddingAll": "20px",
+              "flex": 3,
+              "contents": [
+                {
+                  "type": "image",
+                  "url": "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png",
+                  "aspectMode": "fit",
+                  "size": "100%",
+                  "align": "start"
+                },
+                {
+                  "type": "text",
+                  "text": data.title,
+                  "size": "sm",
+                  "color": "#666666",
+                  "wrap": true,
+                  "margin": "xxl"
+                },
+                {
+                  "type": "text",
+                  "text": data.name,
+                  "size": "lg",
+                  "weight": "bold",
+                  "margin": "sm",
+                  "color": "#F39800",
+                  "wrap": true
+                },
+                {
+                  "type": "text",
+                  "text": data.englishName,
+                  "size": "md",
+                  "color": "#333333",
+                  "margin": "sm",
+                  "wrap": true
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "paddingAll": "20px",
+              "flex": 7,
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "MaKarma",
+                  "weight": "bold",
+                  "size": "xl" // 英文名稱大小改為xl
+                },
+                {
+                  "type": "text",
+                  "text": "瑪卡鑑網路行銷",
+                  "size": "md", // 中文維持md
+                  "color": "#555555",
+                  "margin": "xs"
+                },
+                {
+                  "type": "separator",
+                  "margin": "lg"
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "margin": "lg",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "box",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "contents": [
+                        {
+                          "type": "image",
+                          "url": "https://raw.githubusercontent.com/Hsulala/u/main/phone.png",
+                          "size": "xxs",
+                          "flex": 0
+                        },
+                        {
+                          "type": "text",
+                          "text": data.mobile,
+                          "margin": "md",
+                          "size": "sm"
+                        }
+                      ],
+                      "action": { // 電話號碼區塊可點擊
+                        "type": "uri",
+                        "uri": "tel:" + data.mobile
+                      }
+                    },
+                    {
+                      "type": "box",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "contents": [
+                        {
+                          "type": "image",
+                          "url": "https://raw.githubusercontent.com/Hsulala/u/main/mail.png",
+                          "size": "xxs",
+                          "flex": 0
+                        },
+                        {
+                          "type": "text",
+                          "text": data.email,
+                          "margin": "md",
+                          "size": "sm"
+                        }
+                      ],
+                      "action": { // Email區塊可點擊
+                        "type": "uri",
+                        "uri": "mailto:" + data.email
+                      }
+                    },
+                    {
+                      "type": "box",
+                      "layout": "horizontal",
+                      "alignItems": "center",
+                      "contents": [
+                        {
+                          "type": "image",
+                          "url": "https://raw.githubusercontent.com/Hsulala/u/main/lineid.png",
+                          "size": "xxs",
+                          "flex": 0
+                        },
+                        {
+                          "type": "text",
+                          "text": data.lineId,
+                          "margin": "md",
+                          "size": "sm"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "separator",
+                  "margin": "lg"
+                },
+                {
+                  "type": "text",
+                  "text": "SEO優化｜網站設計製作｜Google商家管理",
+                  "wrap": true,
+                  "size": "xs",
+                  "margin": "xxl",
+                  "color": "#888888",
+                  "lineSpacing": "4px"
+                }
+              ]
+            }
+          ]
+        },
+        "footer": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "contents": [
+            {
+              "type": "button",
+              "style": "primary",
+              "height": "sm",
+              "color": "#FFA000",
+              "action": {
+                "type": "uri",
+                "label": "官方網站",
+                "uri": "https://www.makarma.com.tw/"
+              }
+            },
+            {
+              "type": "separator"
+            },
+            {
+              "type": "button",
+              "style": "primary",
+              "height": "sm",
+              "color": "#FFA000",
+              "action": {
+                "type": "uri",
+                "label": "成效展示頁",
+                "uri": "https://sites.google.com/view/makamaseo/%E9%A6%96%E9%A0%81"
+              }
+            }
+          ]
         }
+      }
+    };
+}
 
         main();
     </script>
