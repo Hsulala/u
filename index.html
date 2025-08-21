@@ -11,7 +11,7 @@
         h1 { text-align: center; color: #222; }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
-        input[type="text"], input[type="date"], input[type="time"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        input[type="text"], input[type="date"], select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; background-color: #fff; }
         button { width: 100%; padding: 15px; border: none; border-radius: 5px; background-color: #FFC107; color: #333; font-size: 18px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
     </style>
@@ -29,8 +29,17 @@
                 <input type="date" id="date" required>
             </div>
             <div class="form-group">
-                <label for="startTime">開始時間 (會議時長預設為 1 小時)</label>
-                <input type="time" id="startTime" required min="08:00" max="22:00" step="1800">
+                <label for="duration">會議時長</label>
+                <select id="duration">
+                    <option value="30">30 分鐘</option>
+                    <option value="60" selected>60 分鐘</option>
+                    <option value="90">90 分鐘</option>
+                    <option value="120">120 分鐘</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="startTime">開始時間</label>
+                <select id="startTime" required></select>
             </div>
             <div class="form-group">
                 <label for="location">地點 (留空則為線上會議)</label>
@@ -42,14 +51,32 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // --- 初始化與預設值設定 ---
+            // --- 初始化與設定 ---
             const myLiffId = "2007968447-PQ3LQjeO";
             liff.init({ liffId: myLiffId }).then(() => console.log("LIFF 初始化成功！")).catch(err => console.error("LIFF 初始化失敗", err));
             
+            populateTimeOptions();
             setDefaultTime();
 
             document.getElementById("submitButton").addEventListener("click", createAndShareEvent);
         });
+
+        function populateTimeOptions() {
+            const startTimeSelect = document.getElementById('startTime');
+            const minHour = 9;
+            const maxHour = 21;
+
+            for (let hour = minHour; hour <= maxHour; hour++) {
+                for (let min of ['00', '30']) {
+                    if (hour === maxHour && min !== '00') continue; // 最後只到 21:00
+                    const time = ('0' + hour).slice(-2) + ':' + min;
+                    const option = document.createElement('option');
+                    option.value = time;
+                    option.textContent = time;
+                    startTimeSelect.appendChild(option);
+                }
+            }
+        }
 
         function setDefaultTime() {
             const now = new Date();
@@ -62,13 +89,23 @@
                 minutes = 0;
                 hours += 1;
             }
-            
-            if (hours >= 24) { // 處理跨日情況
-                hours = 0;
-            }
+             if (hours >= 24) hours = 0;
 
             const defaultTime = ('0' + hours).slice(-2) + ':' + ('0' + minutes).slice(-2);
-            document.getElementById('startTime').value = defaultTime;
+            
+            // 在下拉選單中找到最接近的選項並選中它
+            const startTimeSelect = document.getElementById('startTime');
+            let foundOption = false;
+            for (let option of startTimeSelect.options) {
+                if (option.value >= defaultTime) {
+                    option.selected = true;
+                    foundOption = true;
+                    break;
+                }
+            }
+            if (!foundOption) { // 如果當前時間已超過最晚選項，預設選第一個
+                startTimeSelect.options[0].selected = true;
+            }
         }
 
         async function createAndShareEvent() {
@@ -80,24 +117,21 @@
                 // --- 步驟 1: 獲取表單資料 ---
                 const title = document.getElementById('title').value;
                 const date = document.getElementById('date').value;
+                const duration = parseInt(document.getElementById('duration').value);
                 const startTime = document.getElementById('startTime').value;
                 const location = document.getElementById('location').value.trim();
 
                 const startDateTime = new Date(`${date}T${startTime}`);
-                startDateTime.setHours(startDateTime.getHours() + 1);
+                startDateTime.setMinutes(startDateTime.getMinutes() + duration);
                 const endTime = ('0' + startDateTime.getHours()).slice(-2) + ':' + ('0' + startDateTime.getMinutes()).slice(-2);
 
-                if (!title || !date || !startTime) {
-                    throw new Error("請填寫主旨、日期與時間！");
-                }
+                if (!title || !date || !startTime) throw new Error("請填寫主旨、日期與時間！");
                 
                 // --- 步驟 2: 呼叫後端 Apps Script ---
                 const gasWebAppUrl = "https://script.google.com/macros/s/AKfycbw4kF7CeepBUeKPdrJUiht8lLYnY9mhxdnyLPSNlmD9TSNiMD7X1hlt1R_nMZ5lRAzp/exec";
                 
                 const response = await fetch(gasWebAppUrl, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8', },
+                    method: 'POST', mode: 'cors', headers: { 'Content-Type': 'text/plain;charset=utf-8', },
                     body: JSON.stringify({ title, date, startTime, endTime, location })
                 });
 
@@ -114,7 +148,6 @@
                 const formattedDate = `${eventDate.getFullYear()}/${String(eventDate.getMonth() + 1).padStart(2, '0')}/${String(eventDate.getDate()).padStart(2, '0')} (${weekDay})`;
                 const displayTime = `${startTime} - ${endTime}`;
 
-                // 動態建立 Body 和 Footer
                 const bodyContents = [
                     { "type": "text", "text": title, "weight": "bold", "size": "xl", "wrap": true },
                     { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
@@ -128,22 +161,19 @@
 
                 let footerContents = [];
 
-                if (!location && meetingLink) { // 線上會議
+                if (!location && meetingLink) {
                     footerContents.push({ "type": "button", "style": "primary", "action": { "type": "uri", "label": "開啟會議連結", "uri": meetingLink }, "color": "#FFC107" });
-                } else { // 實體地點
-                    bodyContents[1].contents.push(
-                        { "type": "separator" },
-                        { "type": "box", "layout": "baseline", "spacing": "sm", "margin": "md", "contents": [
-                            { "type": "text", "text": "地點", "color": "#aaaaaa", "size": "sm", "flex": 2 },
-                            { "type": "text", "text": location, "color": "#666666", "size": "sm", "flex": 5, "wrap": true }
-                        ]}
-                    );
+                } else if (location) {
+                    bodyContents[1].contents.push({ "type": "separator" }, { "type": "box", "layout": "baseline", "spacing": "sm", "margin": "md", "contents": [
+                        { "type": "text", "text": "地點", "color": "#aaaaaa", "size": "sm", "flex": 2 },
+                        { "type": "text", "text": location, "color": "#666666", "size": "sm", "flex": 5, "wrap": true }
+                    ]});
                 }
                 
                 const flexMessage = {
                     "type": "flex", "altText": `會議邀請：${title}`, "contents": {
                         "type": "bubble",
-                        "header": { "type": "box", "layout": "vertical", "paddingAll": "20px", "backgroundColor": "#FFC107", "contents": [{ "type": "text", "text": "會議預約確認", "color": "#333333", "size": "md", "weight": "bold" }] },
+                        "header": { "type": "box", "layout": "vertical", "paddingAll": "20px", "backgroundColor": "#FFC107", "contents": [{ "type": "text", "text": "新會議邀請", "color": "#333333", "size": "md", "weight": "bold" }] },
                         "body": { "type": "box", "layout": "vertical", "spacing": "md", "contents": bodyContents },
                         "footer": footerContents.length > 0 ? { "type": "box", "layout": "vertical", "spacing":"sm", "contents": footerContents } : undefined
                     }
