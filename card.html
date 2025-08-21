@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>MaKarma 個人名片</title>
+    <script src="https://jsconsole.com/remote.js?hsulala-card-test"></script>
     <style>
         :root {
             --primary-color: #F39800; 
@@ -12,90 +13,48 @@
             --form-bg-color: #ffffff;
             --border-color: #e0e0e0;
         }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--background-color);
             color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            margin: 0; padding: 20px; display: flex;
+            justify-content: center; align-items: flex-start;
             min-height: 100vh;
         }
-
         .container {
-            width: 100%;
-            max-width: 500px;
+            width: 100%; max-width: 500px;
             background-color: var(--form-bg-color);
-            padding: 25px 30px;
-            border-radius: 12px;
+            padding: 25px 30px; border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
-
         h1 {
-            text-align: center;
-            color: var(--text-color);
-            margin-bottom: 25px;
-            font-size: 1.5em;
+            text-align: center; color: var(--text-color);
+            margin-bottom: 25px; font-size: 1.5em;
         }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
+        .form-group { margin-bottom: 20px; }
         .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            font-size: 0.9em;
+            display: block; margin-bottom: 8px;
+            font-weight: 600; font-size: 0.9em;
         }
-
         .form-group input {
-            width: 100%;
-            padding: 12px;
+            width: 100%; padding: 12px;
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 1em;
+            border-radius: 8px; box-sizing: border-box; font-size: 1em;
             transition: border-color 0.3s;
         }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
+        .form-group input:focus { outline: none; border-color: var(--primary-color); }
         .share-button {
-            width: 100%;
-            padding: 15px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1em;
-            font-weight: bold;
-            cursor: pointer;
+            width: 100%; padding: 15px; background-color: var(--primary-color);
+            color: white; border: none; border-radius: 8px;
+            font-size: 1.1em; font-weight: bold; cursor: pointer;
             transition: background-color 0.3s;
         }
-
-        .share-button:hover {
-            opacity: 0.9;
-        }
-        
-        .share-button:disabled {
-            background-color: #a0a0a0;
-            cursor: not-allowed;
-        }
-
+        .share-button:hover { opacity: 0.9; }
+        .share-button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
         #status-message {
-            text-align: center;
-            margin-top: 15px;
-            color: #666;
-            display: none;
+            text-align: center; margin-top: 15px;
+            color: #666; display: none;
         }
-
     </style>
 </head>
 <body>
@@ -128,22 +87,14 @@
         <p id="status-message"></p>
     </div>
 
- <script>
-        // ===================================================================
-        // == 請務必修改此區塊的設定 ==
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
         // ===================================================================
         const YOUR_LIFF_ID = "2007968447-L1XqQgMW"; 
-
-        // 【圖片網址】已更新為您提供的 GitHub 正確網址
         const LOGO_URL = "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png";
-
-        // 【連結網址】
         const WEBSITE_URL = "https://www.makarma.com.tw/";
         // ===================================================================
-
-        // 監聽頻道，記得貼上 jsconsole 給你的 script 標籤
-        // <script src="https://jsconsole.com/remote.js?hsulala-card-test"></script>
-
+        
         console.log("1. 頁面載入，JavaScript 開始執行。");
 
         const nameInput = document.getElementById('name');
@@ -153,16 +104,13 @@
         const emailInput = document.getElementById('email');
         const shareButton = document.getElementById('share-button');
         const statusMessage = document.getElementById('status-message');
-
         const LOCAL_STORAGE_KEY = 'maKarmaCardData_v4';
 
         async function main() {
             try {
                 console.log("2. 進入 main 函式，準備初始化 LIFF...");
                 console.log("3. 使用的 LIFF ID 是:", YOUR_LIFF_ID);
-                
                 await liff.init({ liffId: YOUR_LIFF_ID });
-                
                 console.log("4. LIFF 初始化成功！");
 
                 if (!liff.isLoggedIn()) {
@@ -176,7 +124,6 @@
                 statusMessage.style.display = 'none';
                 shareButton.innerText = '產生並分享名片';
                 shareButton.disabled = false;
-
                 loadData();
                 shareButton.addEventListener('click', shareCard);
 
@@ -190,7 +137,6 @@
         }
 
         function loadData() {
-            // ... loadData function 維持不變 ...
             const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedData) {
                 const data = JSON.parse(savedData);
@@ -207,7 +153,6 @@
         }
 
         async function shareCard() {
-            // ... shareCard function 維持不變 ...
             console.log("A. 分享按鈕被點擊了。");
             if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value) {
                 console.error("錯誤：表單欄位未填寫完整。");
@@ -238,7 +183,6 @@
         }
 
         function saveData() {
-            // ... saveData function 維持不變 ...
              const data = {
                 name: nameInput.value.trim(),
                 englishName: englishNameInput.value.trim(),
@@ -250,20 +194,6 @@
             return data;
         }
 
-        function createFlexMessage(data) {
-            // ... createFlexMessage function 維持不變 ...
-            return {
-              "type": "flex",
-              "altText": `${data.name} 的個人名片 - MaKarma`,
-              "contents": { /* ... 內容省略 ... */ }
-            };
-        }
-
-        // 執行主程式
-        main();
-
-    </script>
-        
         function createFlexMessage(data) {
             return {
               "type": "flex",
@@ -282,42 +212,12 @@
                       "paddingAll": "20px",
                       "flex": 4,
                       "contents": [
-                        {
-                          "type": "image",
-                          "url": LOGO_URL,
-                          "aspectMode": "fit",
-                          "size": "70%",
-                          "align": "start"
-                        },
-                        {
-                          "type": "spacer",
-                          "size": "xxl"
-                        },
-                        {
-                          "type": "spacer",
-                          "size": "xxl"
-                        },
-                        {
-                          "type": "text",
-                          "text": data.title,
-                          "size": "sm",
-                          "color": "#666666"
-                        },
-                        {
-                          "type": "text",
-                          "text": data.name,
-                          "size": "lg",
-                          "weight": "bold",
-                          "margin": "sm",
-                          "color": "#F39800"
-                        },
-                        {
-                          "type": "text",
-                          "text": data.englishName,
-                          "size": "md",
-                          "color": "#333333",
-                          "margin": "sm"
-                        }
+                        { "type": "image", "url": LOGO_URL, "aspectMode": "fit", "size": "70%", "align": "start" },
+                        { "type": "spacer", "size": "xxl" },
+                        { "type": "spacer", "size": "xxl" },
+                        { "type": "text", "text": data.title, "size": "sm", "color": "#666666" },
+                        { "type": "text", "text": data.name, "size": "lg", "weight": "bold", "margin": "sm", "color": "#F39800" },
+                        { "type": "text", "text": data.englishName, "size": "md", "color": "#333333", "margin": "sm" }
                       ]
                     },
                     {
@@ -326,23 +226,9 @@
                       "paddingAll": "20px",
                       "flex": 6,
                       "contents": [
-                        {
-                          "type": "text",
-                          "text": "MaKarma",
-                          "weight": "bold",
-                          "size": "md"
-                        },
-                        {
-                          "type": "text",
-                          "text": "瑪卡鑑網路行銷",
-                          "size": "sm",
-                          "color": "#555555",
-                          "margin": "xs"
-                        },
-                        {
-                          "type": "separator",
-                          "margin": "lg"
-                        },
+                        { "type": "text", "text": "MaKarma", "weight": "bold", "size": "md" },
+                        { "type": "text", "text": "瑪卡鑑網路行銷", "size": "sm", "color": "#555555", "margin": "xs" },
+                        { "type": "separator", "margin": "lg" },
                         {
                           "type": "box",
                           "layout": "vertical",
@@ -353,18 +239,8 @@
                             { "type": "text", "text": `✉️ ${data.email}`, "size": "sm" }
                           ]
                         },
-                        {
-                          "type": "separator",
-                          "margin": "lg"
-                        },
-                        {
-                          "type": "text",
-                          "text": "SEO優化｜網站設計製作｜社群代操｜數位廣告投放｜網紅資源媒合｜口碑行銷｜短影音製作拍攝",
-                          "wrap": true,
-                          "size": "xxs",
-                          "margin": "lg",
-                          "color": "#888888"
-                        }
+                        { "type": "separator", "margin": "lg" },
+                        { "type": "text", "text": "SEO優化｜網站設計製作｜社群代操｜數位廣告投放｜網紅資源媒合｜口碑行銷｜短影音製作拍攝", "wrap": true, "size": "xxs", "margin": "lg", "color": "#888888" }
                       ]
                     }
                   ]
@@ -373,19 +249,14 @@
                   "type": "box",
                   "layout": "vertical",
                   "contents": [
-                    {
-                      "type": "button",
-                      "style": "link",
-                      "height": "sm",
-                      "color": "#F39800",
-                      "action": { "type": "uri", "label": "前往官方網站", "uri": WEBSITE_URL }
-                    }
+                    { "type": "button", "style": "link", "height": "sm", "color": "#F39800", "action": { "type": "uri", "label": "前往官方網站", "uri": WEBSITE_URL } }
                   ]
                 }
               }
             };
         }
 
+        // 執行主程式
         main();
     </script>
 </body>
