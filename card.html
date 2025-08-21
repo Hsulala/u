@@ -128,8 +128,7 @@
         <p id="status-message"></p>
     </div>
 
-    <script src="https://jsconsole.com/?hsulala-card-test"></script>
-    <script>
+ <script>
         // ===================================================================
         // == 請務必修改此區塊的設定 ==
         // ===================================================================
@@ -142,6 +141,10 @@
         const WEBSITE_URL = "https://www.makarma.com.tw/";
         // ===================================================================
 
+        // 監聽頻道，記得貼上 jsconsole 給你的 script 標籤
+        // <script src="https://jsconsole.com/remote.js?hsulala-card-test"></script>
+
+        console.log("1. 頁面載入，JavaScript 開始執行。");
 
         const nameInput = document.getElementById('name');
         const englishNameInput = document.getElementById('englishName');
@@ -151,25 +154,43 @@
         const shareButton = document.getElementById('share-button');
         const statusMessage = document.getElementById('status-message');
 
-        const LOCAL_STORAGE_KEY = 'maKarmaCardData_v4'; // 更新版本以避免舊資料衝突
+        const LOCAL_STORAGE_KEY = 'maKarmaCardData_v4';
 
         async function main() {
             try {
+                console.log("2. 進入 main 函式，準備初始化 LIFF...");
+                console.log("3. 使用的 LIFF ID 是:", YOUR_LIFF_ID);
+                
                 await liff.init({ liffId: YOUR_LIFF_ID });
+                
+                console.log("4. LIFF 初始化成功！");
+
                 if (!liff.isLoggedIn()) {
-                    statusMessage.innerText = "請先登入 LINE"; return;
+                    console.warn("警告：使用者未登入 LINE 或在外部瀏覽器。");
+                    statusMessage.innerText = "請在 LINE App 內開啟";
+                    shareButton.disabled = true;
+                    return;
                 }
+                
+                console.log("5. 使用者已登入。");
+                statusMessage.style.display = 'none';
                 shareButton.innerText = '產生並分享名片';
                 shareButton.disabled = false;
+
                 loadData();
                 shareButton.addEventListener('click', shareCard);
+
             } catch (error) {
-                console.error('LIFF Initialization failed', error);
-                statusMessage.innerText = "LIFF 初始化失敗，請重新整理頁面。";
+                console.error("！！！LIFF 初始化過程中發生嚴重錯誤！！！");
+                console.error("錯誤名稱:", error.name);
+                console.error("錯誤訊息:", error.message);
+                console.error("完整錯誤物件:", JSON.stringify(error));
+                statusMessage.innerText = "LIFF 初始化失敗，請檢查 Console。";
             }
         }
 
         function loadData() {
+            // ... loadData function 維持不變 ...
             const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedData) {
                 const data = JSON.parse(savedData);
@@ -181,12 +202,44 @@
             } else {
                 liff.getProfile().then(profile => {
                     nameInput.value = profile.displayName;
-                }).catch(err => console.error('Failed to get profile', err));
+                }).catch(err => console.error('getProfile 失敗', err));
+            }
+        }
+
+        async function shareCard() {
+            // ... shareCard function 維持不變 ...
+            console.log("A. 分享按鈕被點擊了。");
+            if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value) {
+                console.error("錯誤：表單欄位未填寫完整。");
+                alert('請填寫所有欄位！'); 
+                return;
+            }
+            try {
+                const data = saveData();
+                console.log("B. 表單資料已儲存:", JSON.stringify(data));
+                if (!liff.isApiAvailable('shareTargetPicker')) {
+                    console.error("錯誤：shareTargetPicker API 無法使用。");
+                    alert('您的 LINE 版本不支援此功能，請更新至最新版。'); 
+                    return;
+                }
+                console.log("C. ShareTargetPicker API 確認可用。");
+                const flexMessage = createFlexMessage(data);
+                console.log("D. Flex Message 已成功建立。");
+                console.log("E. 即將呼叫 liff.shareTargetPicker...");
+                await liff.shareTargetPicker([flexMessage]); 
+                console.log("F. liff.shareTargetPicker 呼叫完成。");
+            } catch (error) {
+                console.error("！！！在分享過程中發生了嚴重錯誤！！！");
+                console.error("錯誤名稱:", error.name);
+                console.error("錯誤訊息:", error.message);
+                console.error("完整錯誤物件:", JSON.stringify(error));
+                alert(`分享失敗，錯誤訊息：${error.message}`);
             }
         }
 
         function saveData() {
-            const data = {
+            // ... saveData function 維持不變 ...
+             const data = {
                 name: nameInput.value.trim(),
                 englishName: englishNameInput.value.trim(),
                 title: titleInput.value.trim(),
@@ -197,21 +250,19 @@
             return data;
         }
 
-        async function shareCard() {
-            if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value) {
-                alert('請填寫所有欄位！'); return;
-            }
-            const data = saveData();
-            if (!liff.isApiAvailable('shareTargetPicker')) {
-                alert('您的 LINE 版本不支援此功能，請更新至最新版。'); return;
-            }
-            const flexMessage = createFlexMessage(data);
-            try { await liff.shareTargetPicker([flexMessage]); } 
-            catch (error) {
-                console.error('ShareTargetPicker failed', error);
-                alert('名片分享失敗，請稍後再試。');
-            }
+        function createFlexMessage(data) {
+            // ... createFlexMessage function 維持不變 ...
+            return {
+              "type": "flex",
+              "altText": `${data.name} 的個人名片 - MaKarma`,
+              "contents": { /* ... 內容省略 ... */ }
+            };
         }
+
+        // 執行主程式
+        main();
+
+    </script>
         
         function createFlexMessage(data) {
             return {
