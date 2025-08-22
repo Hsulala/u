@@ -42,13 +42,13 @@
 
         // 【圖片網址】請確保這些圖片是公開存取的網址
         const LOGO_URL = "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png";
-        const PHONE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/phone.png"; // 電話圖示 (請換成您的圖片網址)
-        const EMAIL_ICON_URL = "hhttps://raw.githubusercontent.com/Hsulala/u/main/mail.png"; // Email 圖示 (請換成您的圖片網址)
-        const LINE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/lineid.png";  // LINE 圖示 (請換成您的圖片網址)
+        const PHONE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/phone.png";
+        const EMAIL_ICON_URL = "hhttps://raw.githubusercontent.com/Hsulala/u/main/mail.png";
+        const LINE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/lineid.png";
 
         // 【連結網址】
         const WEBSITE_URL = "https://www.makarma.com.tw/";
-        const PERFORMANCE_URL = "https://sites.google.com/view/makamaseo/%E9%A6%96%E9%A0%81"; // 請換成您的成效展示頁網址
+        const PERFORMANCE_URL = "https://sites.google.com/view/makamaseo/%E9%A6%96%E9%A0%81";
         // ===================================================================
 
         const nameInput = document.getElementById('name');
@@ -74,7 +74,8 @@
                 loadData();
                 shareButton.addEventListener('click', shareCard);
             } catch (error) {
-                alert(`LIFF 初始化失敗：\n${error.name}\n${error.message}`);
+                statusMessage.innerText = `LIFF 初始化失敗：\n${error.name}\n${error.message}`;
+                statusMessage.style.display = 'block';
             }
         }
 
@@ -87,33 +88,17 @@
                 emailInput.value = data.email || ''; lineIdInput.value = data.lineId || '';
             } else if (liff.isLoggedIn()) {
                 liff.getProfile().then(profile => { nameInput.value = profile.displayName; })
-                .catch(err => alert(`讀取個人資料失敗：${err.message}`));
+                    .catch(err => {
+                        console.error(`讀取個人資料失敗：${err.message}`);
+                    });
             }
         }
 
-async function shareCard() {
-        // 1. 取得使用者輸入的資料
-        const data = saveData();
-        if (!data) {
-            return; // 如果資料不完整，就終止
-        }
-
-        try {
-            // 2. 用這些資料來建立 Flex Message
-            const flexMessage = createFlexMessage(data);
-
-            // 3. 呼叫 liff.shareTargetPicker 並傳入完整的 Flex Message
-            await liff.shareTargetPicker([
-                flexMessage
-            ]);
-        } catch (error) {
-            alert(`分享失敗：\n${error.name}\n${error.message}`);
-        }
-    }
-
         function saveData() {
             if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value || !lineIdInput.value) {
-                alert('請填寫所有欄位！'); return null;
+                statusMessage.innerText = '請填寫所有欄位！';
+                statusMessage.style.display = 'block';
+                return null;
             }
             const data = {
                 name: nameInput.value.trim(), englishName: englishNameInput.value.trim(),
@@ -124,206 +109,224 @@ async function shareCard() {
             return data;
         }
 
-        function createFlexMessage(data) {
-    return {
-      "type": "flex",
-      "altText": `${data.name} 的個人名片 - MaKarma`,
-      "contents": {
-        "type": "bubble",
-        "size": "giga",
-        "body": {
-          "type": "box",
-          "layout": "horizontal",
-          "paddingAll": "0px",
-          "contents": [
-            {
-              "type": "box",
-              "layout": "vertical",
-              "paddingAll": "20px",
-              "flex": 3,
-              "contents": [
-                {
-                  "type": "image",
-                  "url": "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png",
-                  "aspectMode": "fit",
-                  "size": "100%",
-                  "align": "start"
-                },
-                {
-                  "type": "text",
-                  "text": data.title,
-                  "size": "sm",
-                  "color": "#666666",
-                  "wrap": true,
-                  "margin": "xxl"
-                },
-                {
-                  "type": "text",
-                  "text": data.name,
-                  "size": "lg",
-                  "weight": "bold",
-                  "margin": "sm",
-                  "color": "#F39800",
-                  "wrap": true
-                },
-                {
-                  "type": "text",
-                  "text": data.englishName,
-                  "size": "md",
-                  "color": "#333333",
-                  "margin": "sm",
-                  "wrap": true
-                }
-              ]
-            },
-            {
-              "type": "box",
-              "layout": "vertical",
-              "paddingAll": "20px",
-              "flex": 7,
-              "contents": [
-                {
-                  "type": "text",
-                  "text": "MaKarma",
-                  "weight": "bold",
-                  "size": "xl" // 英文名稱大小改為xl
-                },
-                {
-                  "type": "text",
-                  "text": "瑪卡鑑網路行銷",
-                  "size": "md", // 中文維持md
-                  "color": "#555555",
-                  "margin": "xs"
-                },
-                {
-                  "type": "separator",
-                  "margin": "lg"
-                },
-                {
-                  "type": "box",
-                  "layout": "vertical",
-                  "margin": "lg",
-                  "spacing": "sm",
-                  "contents": [
-                    {
-                      "type": "box",
-                      "layout": "horizontal",
-                      "alignItems": "center",
-                      "contents": [
-                        {
-                          "type": "image",
-                          "url": "https://raw.githubusercontent.com/Hsulala/u/main/phone.png",
-                          "size": "xxs",
-                          "flex": 0
-                        },
-                        {
-                          "type": "text",
-                          "text": data.mobile,
-                          "margin": "md",
-                          "size": "sm"
-                        }
-                      ],
-                      "action": { // 電話號碼區塊可點擊
-                        "type": "uri",
-                        "uri": "tel:" + data.mobile
-                      }
-                    },
-                    {
-                      "type": "box",
-                      "layout": "horizontal",
-                      "alignItems": "center",
-                      "contents": [
-                        {
-                          "type": "image",
-                          "url": "https://raw.githubusercontent.com/Hsulala/u/main/mail.png",
-                          "size": "xxs",
-                          "flex": 0
-                        },
-                        {
-                          "type": "text",
-                          "text": data.email,
-                          "margin": "md",
-                          "size": "sm"
-                        }
-                      ],
-                      "action": { // Email區塊可點擊
-                        "type": "uri",
-                        "uri": "mailto:" + data.email
-                      }
-                    },
-                    {
-                      "type": "box",
-                      "layout": "horizontal",
-                      "alignItems": "center",
-                      "contents": [
-                        {
-                          "type": "image",
-                          "url": "https://raw.githubusercontent.com/Hsulala/u/main/lineid.png",
-                          "size": "xxs",
-                          "flex": 0
-                        },
-                        {
-                          "type": "text",
-                          "text": data.lineId,
-                          "margin": "md",
-                          "size": "sm"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "separator",
-                  "margin": "lg"
-                },
-                {
-                  "type": "text",
-                  "text": "SEO優化｜網站設計製作｜Google商家管理",
-                  "wrap": true,
-                  "size": "xs",
-                  "margin": "xxl",
-                  "color": "#888888",
-                  "lineSpacing": "4px"
-                }
-              ]
+        async function shareCard() {
+            const data = saveData();
+            if (!data) {
+                return;
             }
-          ]
-        },
-        "footer": {
-          "type": "box",
-          "layout": "vertical",
-          "spacing": "sm",
-          "contents": [
-            {
-              "type": "button",
-              "style": "primary",
-              "height": "sm",
-              "color": "#FFA000",
-              "action": {
-                "type": "uri",
-                "label": "官方網站",
-                "uri": "https://www.makarma.com.tw/"
-              }
-            },
-            {
-              "type": "separator"
-            },
-            {
-              "type": "button",
-              "style": "primary",
-              "height": "sm",
-              "color": "#FFA000",
-              "action": {
-                "type": "uri",
-                "label": "成效展示頁",
-                "uri": "https://sites.google.com/view/makamaseo/%E9%A6%96%E9%A0%81"
-              }
+
+            try {
+                const flexMessage = createFlexMessage(data);
+
+                await liff.shareTargetPicker([
+                    flexMessage
+                ]);
+            } catch (error) {
+                statusMessage.innerText = `分享失敗：\n${error.name}\n${error.message}`;
+                statusMessage.style.display = 'block';
             }
-          ]
         }
-      }
-    };
-}
+
+        function createFlexMessage(data) {
+            return {
+                "type": "flex",
+                "altText": `${data.name} 的個人名片 - MaKarma`,
+                "contents": {
+                    "type": "bubble",
+                    "size": "giga",
+                    "body": {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "paddingAll": "0px",
+                        "contents": [
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "paddingAll": "20px",
+                                "flex": 3,
+                                "contents": [
+                                    {
+                                        "type": "image",
+                                        "url": LOGO_URL,
+                                        "aspectMode": "fit",
+                                        "size": "100%",
+                                        "align": "start"
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": data.title,
+                                        "size": "sm",
+                                        "color": "#666666",
+                                        "wrap": true,
+                                        "margin": "xxl"
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": data.name,
+                                        "size": "lg",
+                                        "weight": "bold",
+                                        "margin": "sm",
+                                        "color": "#F39800",
+                                        "wrap": true
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": data.englishName,
+                                        "size": "md",
+                                        "color": "#333333",
+                                        "margin": "sm",
+                                        "wrap": true
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "paddingAll": "20px",
+                                "flex": 7,
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "MaKarma",
+                                        "weight": "bold",
+                                        "size": "xl"
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": "瑪卡鑑網路行銷",
+                                        "size": "md",
+                                        "color": "#555555",
+                                        "margin": "xs"
+                                    },
+                                    {
+                                        "type": "separator",
+                                        "margin": "lg"
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "margin": "lg",
+                                        "spacing": "sm",
+                                        "contents": [
+                                            {
+                                                "type": "box",
+                                                "layout": "horizontal",
+                                                "alignItems": "center",
+                                                "contents": [
+                                                    {
+                                                        "type": "image",
+                                                        "url": PHONE_ICON_URL,
+                                                        "size": "xxs",
+                                                        "flex": 0
+                                                    },
+                                                    {
+                                                        "type": "text",
+                                                        "text": data.mobile,
+                                                        "margin": "md",
+                                                        "size": "sm"
+                                                    }
+                                                ],
+                                                "action": {
+                                                    "type": "uri",
+                                                    "uri": "tel:" + data.mobile
+                                                }
+                                            },
+                                            {
+                                                "type": "box",
+                                                "layout": "horizontal",
+                                                "alignItems": "center",
+                                                "contents": [
+                                                    {
+                                                        "type": "image",
+                                                        "url": EMAIL_ICON_URL,
+                                                        "size": "xxs",
+                                                        "flex": 0
+                                                    },
+                                                    {
+                                                        "type": "text",
+                                                        "text": data.email,
+                                                        "margin": "md",
+                                                        "size": "sm"
+                                                    }
+                                                ],
+                                                "action": {
+                                                    "type": "uri",
+                                                    "uri": "mailto:" + data.email
+                                                }
+                                            },
+                                            {
+                                                "type": "box",
+                                                "layout": "horizontal",
+                                                "alignItems": "center",
+                                                "contents": [
+                                                    {
+                                                        "type": "image",
+                                                        "url": LINE_ICON_URL,
+                                                        "size": "xxs",
+                                                        "flex": 0
+                                                    },
+                                                    {
+                                                        "type": "text",
+                                                        "text": data.lineId,
+                                                        "margin": "md",
+                                                        "size": "sm"
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "separator",
+                                        "margin": "lg"
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": "SEO優化｜網站設計製作｜Google商家管理",
+                                        "wrap": true,
+                                        "size": "xs",
+                                        "margin": "xxl",
+                                        "color": "#888888",
+                                        "lineSpacing": "4px"
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "footer": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "spacing": "sm",
+                        "contents": [
+                            {
+                                "type": "button",
+                                "style": "primary",
+                                "height": "sm",
+                                "color": "#FFA000",
+                                "action": {
+                                    "type": "uri",
+                                    "label": "官方網站",
+                                    "uri": WEBSITE_URL
+                                }
+                            },
+                            {
+                                "type": "separator"
+                            },
+                            {
+                                "type": "button",
+                                "style": "primary",
+                                "height": "sm",
+                                "color": "#FFA000",
+                                "action": {
+                                    "type": "uri",
+                                    "label": "成效展示頁",
+                                    "uri": PERFORMANCE_URL
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+        }
 
         main();
     </script>
