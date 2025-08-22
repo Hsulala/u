@@ -204,6 +204,11 @@
                 showMessage('名片分享成功！', 'success');
                 console.log('分享成功');
                 
+                // 選項：分享成功後自動關閉視窗（延遲1秒讓使用者看到成功訊息）
+                setTimeout(() => {
+                    liff.closeWindow();
+                }, 1000);
+                
             } catch (error) {
                 console.error('分享失敗:', error);
                 
