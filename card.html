@@ -16,6 +16,8 @@
         button { width: 100%; padding: 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; }
         button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
         #status-message { text-align: center; margin-top: 15px; color: #666; display: none; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
     </style>
 </head>
 <body>
@@ -43,7 +45,7 @@
         // 【圖片網址】請確保這些圖片是公開存取的網址
         const LOGO_URL = "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png";
         const PHONE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/phone.png";
-        const EMAIL_ICON_URL = "hhttps://raw.githubusercontent.com/Hsulala/u/main/mail.png";
+        const EMAIL_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/mail.png"; // 修正網址（移除重複的 h）
         const LINE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/lineid.png";
 
         // 【連結網址】
@@ -59,71 +61,160 @@
         const lineIdInput = document.getElementById('lineId');
         const shareButton = document.getElementById('share-button');
         const statusMessage = document.getElementById('status-message');
+        const cardForm = document.getElementById('card-form');
         const LOCAL_STORAGE_KEY = 'maKarmaCardData_vFinal';
+
+        // 防止表單預設提交行為
+        cardForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+        });
 
         async function main() {
             try {
                 await liff.init({ liffId: LIFF_ID });
+                console.log('LIFF 初始化成功');
+                
                 if (!liff.isInClient()) {
-                    statusMessage.innerText = "請在 LINE App 內開啟此頁面";
-                    statusMessage.style.display = 'block';
+                    showMessage("請在 LINE App 內開啟此頁面", 'error');
                     return;
                 }
+                
                 shareButton.innerText = '產生並分享名片';
                 shareButton.disabled = false;
                 loadData();
-                shareButton.addEventListener('click', shareCard);
+                shareButton.addEventListener('click', handleShareClick);
+                
             } catch (error) {
-                statusMessage.innerText = `LIFF 初始化失敗：\n${error.name}\n${error.message}`;
-                statusMessage.style.display = 'block';
+                console.error('LIFF 初始化錯誤:', error);
+                showMessage(`LIFF 初始化失敗：${error.message}`, 'error');
+            }
+        }
+
+        function showMessage(message, type = 'info') {
+            statusMessage.innerText = message;
+            statusMessage.className = type;
+            statusMessage.style.display = 'block';
+            
+            // 3秒後自動隱藏訊息（除非是錯誤訊息）
+            if (type !== 'error') {
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 3000);
             }
         }
 
         function loadData() {
-            const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                nameInput.value = data.name || ''; englishNameInput.value = data.englishName || '';
-                titleInput.value = data.title || ''; mobileInput.value = data.mobile || '';
-                emailInput.value = data.email || ''; lineIdInput.value = data.lineId || '';
-            } else if (liff.isLoggedIn()) {
-                liff.getProfile().then(profile => { nameInput.value = profile.displayName; })
-                    .catch(err => {
-                        console.error(`讀取個人資料失敗：${err.message}`);
+            try {
+                const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    nameInput.value = data.name || '';
+                    englishNameInput.value = data.englishName || '';
+                    titleInput.value = data.title || '';
+                    mobileInput.value = data.mobile || '';
+                    emailInput.value = data.email || '';
+                    lineIdInput.value = data.lineId || '';
+                    console.log('已載入儲存的資料');
+                } else if (liff.isLoggedIn()) {
+                    liff.getProfile().then(profile => {
+                        nameInput.value = profile.displayName;
+                        console.log('已載入 LINE 個人資料');
+                    }).catch(err => {
+                        console.error('讀取個人資料失敗:', err);
                     });
+                }
+            } catch (error) {
+                console.error('載入資料時發生錯誤:', error);
             }
         }
 
-        function saveData() {
-            if (!nameInput.value || !englishNameInput.value || !titleInput.value || !mobileInput.value || !emailInput.value || !lineIdInput.value) {
-                statusMessage.innerText = '請填寫所有欄位！';
-                statusMessage.style.display = 'block';
+        function validateAndSaveData() {
+            // 檢查所有必填欄位
+            const requiredFields = [
+                { input: nameInput, name: '姓名' },
+                { input: englishNameInput, name: '英文姓名' },
+                { input: titleInput, name: '職稱' },
+                { input: mobileInput, name: '手機' },
+                { input: emailInput, name: 'Email' },
+                { input: lineIdInput, name: 'LINE ID' }
+            ];
+
+            for (let field of requiredFields) {
+                if (!field.input.value.trim()) {
+                    showMessage(`請填寫「${field.name}」欄位！`, 'error');
+                    field.input.focus();
+                    return null;
+                }
+            }
+
+            // 驗證 Email 格式
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(emailInput.value.trim())) {
+                showMessage('請輸入正確的 Email 格式！', 'error');
+                emailInput.focus();
                 return null;
             }
+
+            // 驗證手機號碼格式
+            const phoneRegex = /^[0-9+\-\s()]{8,15}$/;
+            if (!phoneRegex.test(mobileInput.value.trim())) {
+                showMessage('請輸入正確的手機號碼格式！', 'error');
+                mobileInput.focus();
+                return null;
+            }
+
             const data = {
-                name: nameInput.value.trim(), englishName: englishNameInput.value.trim(),
-                title: titleInput.value.trim(), mobile: mobileInput.value.trim(),
-                email: emailInput.value.trim(), lineId: lineIdInput.value.trim(),
+                name: nameInput.value.trim(),
+                englishName: englishNameInput.value.trim(),
+                title: titleInput.value.trim(),
+                mobile: mobileInput.value.trim(),
+                email: emailInput.value.trim(),
+                lineId: lineIdInput.value.trim(),
             };
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+                console.log('資料已儲存');
+            } catch (error) {
+                console.error('儲存資料時發生錯誤:', error);
+            }
+
             return data;
         }
 
-        async function shareCard() {
-            const data = saveData();
-            if (!data) {
-                return;
-            }
-
+        async function handleShareClick(event) {
+            event.preventDefault(); // 防止任何預設行為
+            
+            shareButton.disabled = true;
+            shareButton.innerText = '處理中...';
+            
             try {
-                const flexMessage = createFlexMessage(data);
+                const data = validateAndSaveData();
+                if (!data) {
+                    return;
+                }
 
-                await liff.shareTargetPicker([
-                    flexMessage
-                ]);
+                showMessage('正在分享名片...', 'info');
+                
+                const flexMessage = createFlexMessage(data);
+                console.log('準備分享 Flex Message:', flexMessage);
+
+                await liff.shareTargetPicker([flexMessage]);
+                
+                showMessage('名片分享成功！', 'success');
+                console.log('分享成功');
+                
             } catch (error) {
-                statusMessage.innerText = `分享失敗：\n${error.name}\n${error.message}`;
-                statusMessage.style.display = 'block';
+                console.error('分享失敗:', error);
+                
+                if (error.code === 'USER_CANCEL') {
+                    showMessage('使用者取消分享', 'info');
+                } else {
+                    showMessage(`分享失敗：${error.message}`, 'error');
+                }
+            } finally {
+                shareButton.disabled = false;
+                shareButton.innerText = '產生並分享名片';
             }
         }
 
@@ -328,7 +419,17 @@
             };
         }
 
-        main();
+        // 在頁面載入時執行
+        document.addEventListener('DOMContentLoaded', function() {
+            main();
+        });
+        
+        // 為了保險起見，也在 window.onload 時執行
+        window.onload = function() {
+            if (shareButton.disabled && shareButton.innerText === 'LIFF 初始化中...') {
+                main();
+            }
+        };
     </script>
 </body>
 </html>
