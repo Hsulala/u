@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>MaKarma 個人名片</title>
+    <style>
+        :root { --primary-color: #F39800; --background-color: #f9f9f9; --text-color: #333; --form-bg-color: #ffffff; --border-color: #e0e0e0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; background-color: var(--background-color); color: var(--text-color); }
+        .container { width: 100%; max-width: 500px; background-color: var(--form-bg-color); padding: 25px 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+        h1 { text-align: center; color: var(--text-color); margin-bottom: 25px; font-size: 1.5em; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9em; }
+        input { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1em; }
+        input:focus { outline: none; border-color: var(--primary-color); }
+        button { width: 100%; padding: 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; }
+        button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        #status-message { text-align: center; margin-top: 15px; color: #666; display: none; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MaKarma 個人名片</h1>
+        <form id="card-form">
+            <div class="form-group"><label for="name">姓名</label><input type="text" id="name" placeholder="例如：徐昀" required></div>
+            <div class="form-group"><label for="englishName">英文姓名</label><input type="text" id="englishName" placeholder="例如：ULY HSU" required></div>
+            <div class="form-group"><label for="title">職稱</label><input type="text" id="title" placeholder="例如：行銷專員" required></div>
+            <div class="form-group"><label for="mobile">手機</label><input type="tel" id="mobile" placeholder="例如：0903966225" required></div>
+            <div class="form-group"><label for="email">Email</label><input type="email" id="email" placeholder="例如：yunshyu@gmail.com" required></div>
+            <div class="form-group"><label for="lineId">LINE ID</label><input type="text" id="lineId" placeholder="例如：yunshyu" required></div>
+        </form>
+        <button id="share-button" class="share-button" disabled>LIFF 初始化中...</button>
+        <p id="status-message"></p>
+    </div>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+        // ===================================================================
+        // == 請務必修改此區塊的設定 ==
+        // ===================================================================
+        const LIFF_ID = "2007968447-L1XqQgMW";
+
+        // 【圖片網址】請確保這些圖片是公開存取的網址
+        const LOGO_URL = "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png";
+        const PHONE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/phone.png";
+        const EMAIL_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/mail.png"; // 修正網址（移除重複的 h）
+        const LINE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/lineid.png";
+
+        // 【固定公司資訊】所有人共用，不用每次填
+        const COMPANY_NAME = "瑪卡鎷網路行銷";
+        const COMPANY_PHONE = "04-2241-5510";
+        const COMPANY_TAX_ID = "96756074";
+        const COMPANY_ADDRESS = "台中市西屯區大恩街13號3樓";
+
+        // 【連結網址】
+        const WEBSITE_URL = "https://www.makarma.com.tw/";
+        const PERFORMANCE_URL = "https://sites.google.com/view/makamaseo/%E9%A6%96%E9%A0%81";
+        // ===================================================================
+
+        const nameInput = document.getElementById('name');
+        const englishNameInput = document.getElementById('englishName');
+        const titleInput = document.getElementById('title');
+        const mobileInput = document.getElementById('mobile');
+        const emailInput = document.getElementById('email');
+        const lineIdInput = document.getElementById('lineId');
+        const shareButton = document.getElementById('share-button');
+        const statusMessage = document.getElementById('status-message');
+        const cardForm = document.getElementById('card-form');
+        const LOCAL_STORAGE_KEY = 'maKarmaCardData_vFinal';
+
+        // 防止表單預設提交行為
+        cardForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+        });
+
+        async function main() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                console.log('LIFF 初始化成功');
+                
+                if (!liff.isInClient()) {
+                    showMessage("請在 LINE App 內開啟此頁面", 'error');
+                    return;
+                }
+                
+                shareButton.innerText = '產生並分享名片';
+                shareButton.disabled = false;
+                loadData();
+                shareButton.addEventListener('click', handleShareClick);
+                
+            } catch (error) {
+                console.error('LIFF 初始化錯誤:', error);
+                showMessage(`LIFF 初始化失敗：${error.message}`, 'error');
+            }
+        }
+
+        function showMessage(message, type = 'info') {
+            statusMessage.innerText = message;
+            statusMessage.className = type;
+            statusMessage.style.display = 'block';
+            
+            // 3秒後自動隱藏訊息（除非是錯誤訊息）
+            if (type !== 'error') {
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function loadData() {
+            try {
+                const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    nameInput.value = data.name || '';
+                    englishNameInput.value = data.englishName || '';
+                    titleInput.value = data.title || '';
+                    mobileInput.value = data.mobile || '';
+                    emailInput.value = data.email || '';
+                    lineIdInput.value = data.lineId || '';
+                    console.log('已載入儲存的資料');
+                } else if (liff.isLoggedIn()) {
+                    liff.getProfile().then(profile => {
+                        nameInput.value = profile.displayName;
+                        console.log('已載入 LINE 個人資料');
+                    }).catch(err => {
+                        console.error('讀取個人資料失敗:', err);
+                    });
+                }
+            } catch (error) {
+                console.error('載入資料時發生錯誤:', error);
+            }
+        }
+
+        function validateAndSaveData() {
+            // 檢查所有必填欄位
+            const requiredFields = [
+                { input: nameInput, name: '姓名' },
+                { input: englishNameInput, name: '英文姓名' },
+                { input: titleInput, name: '職稱' },
+                { input: mobileInput, name: '手機' },
+                { input: emailInput, name: 'Email' },
+                { input: lineIdInput, name: 'LINE ID' }
+            ];
+
+            for (let field of requiredFields) {
+                if (!field.input.value.trim()) {
+                    showMessage(`請填寫「${field.name}」欄位！`, 'error');
+                    field.input.focus();
+                    return null;
+                }
+            }
+
+            // 驗證 Email 格式
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(emailInput.value.trim())) {
+                showMessage('請輸入正確的 Email 格式！', 'error');
+                emailInput.focus();
+                return null;
+            }
+
+            // 驗證手機號碼格式
+            const phoneRegex = /^[0-9+\-\s()]{8,15}$/;
+            if (!phoneRegex.test(mobileInput.value.trim())) {
+                showMessage('請輸入正確的手機號碼格式！', 'error');
+                mobileInput.focus();
+                return null;
+            }
+
+            const data = {
+                name: nameInput.value.trim(),
+                englishName: englishNameInput.value.trim(),
+                title: titleInput.value.trim(),
+                mobile: mobileInput.value.trim(),
+                email: emailInput.value.trim(),
+                lineId: lineIdInput.value.trim(),
+            };
+
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+                console.log('資料已儲存');
+            } catch (error) {
+                console.error('儲存資料時發生錯誤:', error);
+            }
+
+            return data;
+        }
+
+        async function handleShareClick(event) {
+            event.preventDefault(); // 防止任何預設行為
+            
+            shareButton.disabled = true;
+            shareButton.innerText = '處理中...';
+            
+            try {
+                const data = validateAndSaveData();
+                if (!data) {
+                    return;
+                }
+
+                showMessage('正在分享名片...', 'info');
+                
+                const flexMessage = createFlexMessage(data);
+                console.log('準備分享 Flex Message:', flexMessage);
+
+                await liff.shareTargetPicker([flexMessage]);
+                
+                showMessage('名片分享成功！', 'success');
+                console.log('分享成功');
+                
+                // 選項：分享成功後自動關閉視窗（延遲1秒讓使用者看到成功訊息）
+                setTimeout(() => {
+                    liff.closeWindow();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('分享失敗:', error);
+                
+                if (error.code === 'USER_CANCEL') {
+                    showMessage('使用者取消分享', 'info');
+                } else {
+                    showMessage(`分享失敗：${error.message}`, 'error');
+                }
+            } finally {
+                shareButton.disabled = false;
+                shareButton.innerText = '產生並分享名片';
+            }
+        }
+
+        function createFlexMessage(data) {
+            const makarmaLetters = "MaKarma".split("").map(letter => ({
+                "type": "text",
+                "text": letter,
+                "size": "sm",
+                "weight": "bold",
+                "color": "#F39800",
+                "align": "center"
+            }));
+
+            return {
+                "type": "flex",
+                "altText": `${data.name} 的個人名片 - MaKarma`,
+                "contents": {
+                    "type": "bubble",
+                    "size": "mega",
+                    "body": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "24px",
+                        "contents": [
+                            {
+                                "type": "box",
+                                "layout": "horizontal",
+                                "contents": [
+                                    {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "flex": 9,
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": data.title,
+                                                "size": "sm",
+                                                "color": "#F39800",
+                                                "weight": "bold"
+                                            },
+                                            {
+                                                "type": "box",
+                                                "layout": "baseline",
+                                                "margin": "sm",
+                                                "spacing": "sm",
+                                                "contents": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": data.name,
+                                                        "size": "xl",
+                                                        "weight": "bold",
+                                                        "color": "#F39800",
+                                                        "flex": 0
+                                                    },
+                                                    {
+                                                        "type": "text",
+                                                        "text": data.englishName,
+                                                        "size": "md",
+                                                        "color": "#333333",
+                                                        "flex": 0
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "flex": 1,
+                                        "contents": makarmaLetters
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "separator",
+                                "margin": "xl"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "margin": "xl",
+                                "spacing": "md",
+                                "contents": [
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "alignItems": "center",
+                                        "contents": [
+                                            {
+                                                "type": "image",
+                                                "url": PHONE_ICON_URL,
+                                                "size": "xxs",
+                                                "flex": 0
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": data.mobile,
+                                                "margin": "md",
+                                                "size": "sm",
+                                                "weight": "bold"
+                                            }
+                                        ],
+                                        "action": {
+                                            "type": "uri",
+                                            "uri": "tel:" + data.mobile
+                                        }
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "alignItems": "center",
+                                        "contents": [
+                                            {
+                                                "type": "image",
+                                                "url": LINE_ICON_URL,
+                                                "size": "xxs",
+                                                "flex": 0
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": data.lineId,
+                                                "margin": "md",
+                                                "size": "sm",
+                                                "weight": "bold"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "alignItems": "center",
+                                        "contents": [
+                                            {
+                                                "type": "image",
+                                                "url": EMAIL_ICON_URL,
+                                                "size": "xxs",
+                                                "flex": 0
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": data.email,
+                                                "margin": "md",
+                                                "size": "sm",
+                                                "weight": "bold"
+                                            }
+                                        ],
+                                        "action": {
+                                            "type": "uri",
+                                            "uri": "mailto:" + data.email
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "separator",
+                                "margin": "xl"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "margin": "xl",
+                                "spacing": "sm",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": COMPANY_NAME,
+                                        "size": "md",
+                                        "weight": "bold",
+                                        "color": "#333333"
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": `${COMPANY_PHONE}　統編 ${COMPANY_TAX_ID}`,
+                                        "size": "xs",
+                                        "color": "#888888"
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": COMPANY_ADDRESS,
+                                        "size": "xs",
+                                        "color": "#888888",
+                                        "wrap": true
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    "footer": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "spacing": "sm",
+                        "contents": [
+                            {
+                                "type": "button",
+                                "style": "primary",
+                                "height": "sm",
+                                "color": "#FFA000",
+                                "action": {
+                                    "type": "uri",
+                                    "label": "官方網站",
+                                    "uri": WEBSITE_URL
+                                }
+                            },
+                            {
+                                "type": "separator"
+                            },
+                            {
+                                "type": "button",
+                                "style": "primary",
+                                "height": "sm",
+                                "color": "#FFA000",
+                                "action": {
+                                    "type": "uri",
+                                    "label": "成效展示頁",
+                                    "uri": PERFORMANCE_URL
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+        }
+
+        // 在頁面載入時執行
+        document.addEventListener('DOMContentLoaded', function() {
+            main();
+        });
+        
+        // 為了保險起見，也在 window.onload 時執行
+        window.onload = function() {
+            if (shareButton.disabled && shareButton.innerText === 'LIFF 初始化中...') {
+                main();
+            }
+        };
+    </script>
+</body>
+</html>

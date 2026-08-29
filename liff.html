@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工作日誌</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           margin: 0; padding: 20px; background: #f4f4f4; color: #333; }
+    .container { max-width: 480px; margin: 0 auto; background: #fff; padding: 22px;
+                 border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.1); }
+    h1 { text-align: center; font-size: 20px; }
+    .group { margin-bottom: 18px; }
+    label { display: block; font-weight: bold; margin-bottom: 6px; color: #555; font-size: 14px; }
+    input[type=text], textarea, select {
+      width: 100%; padding: 11px; border: 1px solid #ddd; border-radius: 5px;
+      box-sizing: border-box; font-size: 16px;
+    }
+    textarea { resize: vertical; min-height: 70px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { padding: 8px 14px; border: 1px solid #ccc; border-radius: 20px; cursor: pointer;
+            font-size: 14px; user-select: none; background: #fff; }
+    .chip.selected { background: #FFC107; border-color: #FFC107; font-weight: bold; }
+    .tax-candidates { margin-top: 6px; font-size: 13px; }
+    .tax-candidates div { padding: 6px 8px; border: 1px solid #eee; border-radius: 4px;
+                           margin-bottom: 4px; cursor: pointer; background: #fafafa; }
+    button#submitBtn { width: 100%; padding: 15px; border: none; border-radius: 5px;
+                        background: #FFC107; font-size: 17px; font-weight: bold; cursor: pointer; }
+    button#submitBtn:disabled { background: #ccc; }
+    .last-client { background: #FFF8E1; border-radius: 6px; padding: 10px 12px;
+                    margin-bottom: 16px; font-size: 13px; cursor: pointer; display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>工作日誌</h1>
+
+    <div class="last-client" id="lastClientChip"></div>
+
+    <div class="group">
+      <label>客戶名稱</label>
+      <input type="text" id="clientName" placeholder="輸入客戶名稱">
+    </div>
+
+    <div class="group">
+      <label>動作類型（可複選）</label>
+      <div class="chips" id="actionChips">
+        <div class="chip" data-value="開發">開發</div>
+        <div class="chip" data-value="有效">有效</div>
+        <div class="chip" data-value="加LINE">加LINE</div>
+        <div class="chip" data-value="追蹤">追蹤</div>
+        <div class="chip" data-value="DEMO">DEMO</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>這位客戶</label>
+      <div class="chips" id="clientTypeChips">
+        <div class="chip selected" data-value="new">新客戶（CRM 還沒有）</div>
+        <div class="chip" data-value="existing">已有客戶（CRM 已建檔）</div>
+      </div>
+    </div>
+
+    <div class="group" id="crmIdGroup" style="display:none">
+      <label>CRM 客戶編號（如果知道；不知道也可以先送出，程式會用名稱查詢）</label>
+      <input type="text" id="crmId" placeholder="例如 4227">
+    </div>
+
+    <div class="group">
+      <label>CRM 狀態（會同步進 CRM，新客戶請務必選擇，不要留空）</label>
+      <select id="crmStatus">
+        <option value="">— 不更新 CRM 狀態 —</option>
+        <option value="開發中">開發中</option>
+        <option value="評估考慮中">評估考慮中</option>
+        <option value="接洽中">接洽中</option>
+        <option value="簽約中">簽約中</option>
+        <option value="合約書已簽回">合約書已簽回</option>
+        <option value="已成交">已成交</option>
+      </select>
+    </div>
+
+    <div class="group" id="taxGroup" style="display:none">
+      <label>統一編號（新客戶才需要；不知道就留空，會自動帶暫代值）</label>
+      <input type="text" id="taxId" placeholder="留空 = 暫代 96756074">
+      <div class="tax-candidates" id="taxCandidates"></div>
+    </div>
+
+    <div class="group">
+      <label>內容備注</label>
+      <textarea id="note" placeholder="今天做了什麼、對方怎麼回應..."></textarea>
+    </div>
+
+    <div class="group">
+      <label>案件金額（選填，會更新到案件管道表）</label>
+      <input type="text" id="dealAmount" placeholder="例如 50000">
+    </div>
+
+    <button id="submitBtn">送出</button>
+  </div>
+
+  <script>
+    const LAST_CLIENT_KEY = "worklogLastClient";
+    let selectedActions = new Set();
+
+    document.addEventListener("DOMContentLoaded", () => {
+      liff.init({ liffId: "PUT_YOUR_LIFF_ID_HERE" })
+        .then(() => console.log("LIFF 初始化成功"))
+        .catch((e) => console.error("LIFF 初始化失敗", e));
+
+      document.querySelectorAll(".chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const v = chip.dataset.value;
+          if (selectedActions.has(v)) { selectedActions.delete(v); chip.classList.remove("selected"); }
+          else { selectedActions.add(v); chip.classList.add("selected"); }
+        });
+      });
+
+      document.getElementById("crmStatus").addEventListener("change", (e) => {
+        document.getElementById("taxGroup").style.display = e.target.value ? "block" : "none";
+      });
+
+      let clientType = "new";
+      document.querySelectorAll("#clientTypeChips .chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          document.querySelectorAll("#clientTypeChips .chip").forEach((c) => c.classList.remove("selected"));
+          chip.classList.add("selected");
+          clientType = chip.dataset.value;
+          document.getElementById("crmIdGroup").style.display = clientType === "existing" ? "block" : "none";
+        });
+      });
+      window.getClientType = () => clientType;
+
+      const clientInput = document.getElementById("clientName");
+      let debounce;
+      clientInput.addEventListener("input", () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => lookupTaxId(clientInput.value.trim()), 500);
+      });
+
+      setupLastClient();
+      document.getElementById("submitBtn").addEventListener("click", submitEntry);
+    });
+
+    function setupLastClient() {
+      const raw = localStorage.getItem(LAST_CLIENT_KEY);
+      if (!raw) return;
+      const last = JSON.parse(raw);
+      const el = document.getElementById("lastClientChip");
+      el.textContent = `上次記錄：${last.clientName}（點擊帶入）`;
+      el.style.display = "block";
+      el.onclick = () => { document.getElementById("clientName").value = last.clientName; };
+    }
+
+    async function lookupTaxId(name) {
+      const box = document.getElementById("taxCandidates");
+      box.innerHTML = "";
+      if (!name || document.getElementById("taxGroup").style.display === "none") return;
+      try {
+        const res = await callBackend({ action: "lookupTaxId", companyName: name });
+        (res.candidates || []).forEach((c) => {
+          const div = document.createElement("div");
+          div.textContent = `${c.name}｜${c.taxId}｜${c.status}`;
+          div.onclick = () => { document.getElementById("taxId").value = c.taxId; box.innerHTML = ""; };
+          box.appendChild(div);
+        });
+      } catch (e) { console.error(e); }
+    }
+
+    async function callBackend(payload) {
+      // 這個頁面本身就是這支 GAS Web App 的 doGet 輸出，
+      // 所以直接 POST 回同一個網址（window.location.href）即可打到 doPost
+      const res = await fetch(window.location.href, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+      });
+      return res.json();
+    }
+
+    async function submitEntry() {
+      const btn = document.getElementById("submitBtn");
+      const clientName = document.getElementById("clientName").value.trim();
+      if (!clientName) { alert("請輸入客戶名稱"); return; }
+      if (selectedActions.size === 0) { alert("請至少選一個動作類型"); return; }
+
+      btn.disabled = true;
+      btn.textContent = "送出中...";
+
+      const payload = {
+        action: "submit",
+        clientName: clientName,
+        actionTypes: Array.from(selectedActions),
+        crmStatus: document.getElementById("crmStatus").value,
+        taxId: document.getElementById("taxId").value.trim(),
+        note: document.getElementById("note").value.trim(),
+        isNewClient: window.getClientType() === "new",
+        crmId: document.getElementById("crmId").value.trim(),
+        dealAmount: document.getElementById("dealAmount").value.trim(),
+        dealStage: null, // CRM 狀態若對應到斡旋中/預計成交/已成交，也可在這裡一併帶上
+      };
+
+      try {
+        const res = await callBackend(payload);
+        if (res.status !== "success") throw new Error(res.message || "送出失敗");
+
+        localStorage.setItem(LAST_CLIENT_KEY, JSON.stringify({ clientName }));
+
+        alert("已記錄" + (res.crm && res.crm.synced ? "，CRM 已同步" : res.crm ? "（CRM：" + res.crm.message + "）" : ""));
+
+        // 清空表單，方便連續記錄下一筆
+        document.getElementById("clientName").value = "";
+        document.getElementById("note").value = "";
+        document.getElementById("dealAmount").value = "";
+        document.getElementById("taxId").value = "";
+        selectedActions.clear();
+        document.querySelectorAll(".chip.selected").forEach((c) => c.classList.remove("selected"));
+        setupLastClient();
+
+        if (liff.isInClient && liff.isInClient()) {
+          // 在 LINE 內開啟時，送出後可選擇直接關閉視窗
+          // liff.closeWindow();
+        }
+      } catch (e) {
+        alert("送出失敗：" + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "送出";
+      }
+    }
+  </script>
+</body>
+</html>

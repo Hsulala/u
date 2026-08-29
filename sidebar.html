@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           margin: 0; padding: 14px; color: #333; font-size: 13px; }
+    .group { margin-bottom: 14px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    input[type=text], textarea, select {
+      width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;
+      box-sizing: border-box; font-size: 13px;
+    }
+    textarea { min-height: 60px; resize: vertical; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { padding: 6px 10px; border: 1px solid #ccc; border-radius: 16px; cursor: pointer; }
+    .chip.selected { background: #FFC107; border-color: #FFC107; font-weight: bold; }
+    button { width: 100%; padding: 11px; border: none; border-radius: 4px;
+             background: #FFC107; font-weight: bold; cursor: pointer; font-size: 14px; }
+    button:disabled { background: #ccc; }
+    #status { margin-top: 8px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="group">
+    <label>客戶名稱</label>
+    <input type="text" id="clientName">
+  </div>
+
+  <div class="group">
+    <label>動作類型（可複選）</label>
+    <div class="chips" id="actionChips">
+      <div class="chip" data-value="開發">開發</div>
+      <div class="chip" data-value="有效">有效</div>
+      <div class="chip" data-value="加LINE">加LINE</div>
+      <div class="chip" data-value="追蹤">追蹤</div>
+      <div class="chip" data-value="DEMO">DEMO</div>
+    </div>
+  </div>
+
+  <div class="group">
+    <label>這位客戶</label>
+    <div class="chips" id="clientTypeChips">
+      <div class="chip selected" data-value="new">新客戶</div>
+      <div class="chip" data-value="existing">已有客戶</div>
+    </div>
+  </div>
+
+  <div class="group" id="crmIdGroup" style="display:none">
+    <label>CRM 客戶編號（知道的話填，不知道留空）</label>
+    <input type="text" id="crmId">
+  </div>
+
+  <div class="group">
+    <label>CRM 狀態（不留空，避免掉回名單公庫）</label>
+    <select id="crmStatus">
+      <option value="">— 不更新 —</option>
+      <option value="開發中">開發中</option>
+      <option value="評估考慮中">評估考慮中</option>
+      <option value="接洽中">接洽中</option>
+      <option value="簽約中">簽約中</option>
+      <option value="合約書已簽回">合約書已簽回</option>
+      <option value="已成交">已成交</option>
+    </select>
+  </div>
+
+  <div class="group">
+    <label>統一編號（留空 = 暫代）</label>
+    <input type="text" id="taxId">
+  </div>
+
+  <div class="group">
+    <label>內容備注</label>
+    <textarea id="note"></textarea>
+  </div>
+
+  <div class="group">
+    <label>案件金額（選填）</label>
+    <input type="text" id="dealAmount">
+  </div>
+
+  <button id="submitBtn" onclick="submitEntry()">送出</button>
+  <div id="status"></div>
+
+  <script>
+    let selectedActions = new Set();
+    document.querySelectorAll("#actionChips .chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const v = chip.dataset.value;
+        if (selectedActions.has(v)) { selectedActions.delete(v); chip.classList.remove("selected"); }
+        else { selectedActions.add(v); chip.classList.add("selected"); }
+      });
+    });
+
+    let clientType = "new";
+    document.querySelectorAll("#clientTypeChips .chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        document.querySelectorAll("#clientTypeChips .chip").forEach((c) => c.classList.remove("selected"));
+        chip.classList.add("selected");
+        clientType = chip.dataset.value;
+        document.getElementById("crmIdGroup").style.display = clientType === "existing" ? "block" : "none";
+      });
+    });
+
+    function submitEntry() {
+      const clientName = document.getElementById("clientName").value.trim();
+      const statusEl = document.getElementById("status");
+      if (!clientName) { statusEl.textContent = "請輸入客戶名稱"; return; }
+      if (selectedActions.size === 0) { statusEl.textContent = "請至少選一個動作類型"; return; }
+
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      statusEl.textContent = "送出中...";
+
+      const payload = {
+        clientName: clientName,
+        actionTypes: Array.from(selectedActions),
+        crmStatus: document.getElementById("crmStatus").value,
+        taxId: document.getElementById("taxId").value.trim(),
+        note: document.getElementById("note").value.trim(),
+        isNewClient: clientType === "new",
+        crmId: document.getElementById("crmId").value.trim(),
+        dealAmount: document.getElementById("dealAmount").value.trim(),
+        dealStage: null,
+      };
+
+      google.script.run
+        .withSuccessHandler((res) => {
+          statusEl.textContent = "已記錄" + (res.crm && res.crm.synced ? "，CRM 已同步" : "");
+          document.getElementById("clientName").value = "";
+          document.getElementById("note").value = "";
+          document.getElementById("dealAmount").value = "";
+          document.getElementById("taxId").value = "";
+          selectedActions.clear();
+          document.querySelectorAll(".chip.selected").forEach((c) => c.classList.remove("selected"));
+          btn.disabled = false;
+        })
+        .withFailureHandler((err) => {
+          statusEl.textContent = "送出失敗：" + err.message;
+          btn.disabled = false;
+        })
+        .writeEntry(payload);
+    }
+  </script>
+</body>
+</html>
