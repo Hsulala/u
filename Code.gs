@@ -56,7 +56,7 @@ function setupSheets() {
   logSheet.clear();
   logSheet.appendRow([
     "時間戳記", "客戶名稱", "動作類型", "CRM狀態", "備注",
-    "統一編號", "是否已同步CRM", "CRM同步訊息",
+    "統一編號", "是否新客", "是否已同步CRM", "CRM同步訊息",
   ]);
   logSheet.setFrozenRows(1);
 
@@ -174,11 +174,23 @@ function handleSubmit(data) {
   const actionTypes = (data.actionTypes || []).join(",");
   const taxId = (data.taxId || "").trim() || DEFAULT_TAX_ID;
 
+  const isNewClientInput = !!data.isNewClient;
   let crmResult = { synced: false, message: "未同步" };
   if (data.crmStatus) {
     try {
-      let isNewClient = !!data.isNewClient;
+      let isNewClient = isNewClientInput;
       let crmId = data.crmId || "";
+      let duplicateNotice = "";
+
+      if (isNewClient && taxId !== DEFAULT_TAX_ID) {
+        // 選了「新客戶」但有填真正的統編：先查 CRM 有沒有這組統編，避免建出重複客戶
+        const existingId = findClientIdByTaxId(taxId);
+        if (existingId) {
+          isNewClient = false;
+          crmId = existingId;
+          duplicateNotice = `統編 ${taxId} 已存在於 CRM（編號 ${existingId}），已自動改成更新該筆客戶，沒有新增重複資料`;
+        }
+      }
 
       if (!isNewClient && !crmId) {
         // 已有客戶但沒填編號，先用名稱搜尋 CRM 找出編號
@@ -200,6 +212,9 @@ function handleSubmit(data) {
           isNewClient: isNewClient,
           crmId: crmId || "0",
         });
+        if (duplicateNotice) {
+          crmResult.message = duplicateNotice + (crmResult.message ? "；" + crmResult.message : "");
+        }
       }
     } catch (err) {
       crmResult = { synced: false, message: "同步失敗：" + err };
@@ -213,6 +228,7 @@ function handleSubmit(data) {
     data.crmStatus || "",
     data.note || "",
     taxId,
+    isNewClientInput ? "新客戶" : "已有客戶",
     crmResult.synced ? "TRUE" : "FALSE",
     crmResult.message,
   ]);
@@ -550,6 +566,13 @@ function findClientIdByName(name) {
   return null;
 }
 
+// 用統一編號搜尋 CRM，避免「新客戶」其實已經存在而建出重複資料
+// 用同一個清單搜尋框（search[value]）查，跟用名稱搜尋是同一支 API，只是查詢字串換成統編
+function findClientIdByTaxId(taxId) {
+  if (!taxId || taxId === DEFAULT_TAX_ID) return null; // 暫代統編大家都一樣，查了也沒意義
+  return findClientIdByName(taxId);
+}
+
 // ============================================================
 // CRM 同步（模擬表單送出）
 // ============================================================
@@ -876,7 +899,7 @@ function resyncFailedCRMEntries() {
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const synced = String(row[6]).toUpperCase() === "TRUE";
+    const synced = String(row[7]).toUpperCase() === "TRUE";
     const crmStatus = row[3];
     if (synced || !crmStatus) continue; // 已同步過的、或本來就沒要同步CRM狀態的，跳過
 
@@ -899,7 +922,7 @@ function resyncFailedCRMEntries() {
       result = { synced: false, message: "重試失敗：" + err };
     }
 
-    sheet.getRange(i + 1, 7, 1, 2).setValues([[result.synced ? "TRUE" : "FALSE", result.message]]);
+    sheet.getRange(i + 1, 8, 1, 2).setValues([[result.synced ? "TRUE" : "FALSE", result.message]]);
     if (result.synced) succeeded++;
     Utilities.sleep(500); // 稍微間隔一下，避免太密集的請求
   }
