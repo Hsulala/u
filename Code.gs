@@ -482,13 +482,18 @@ function testFullSubmit() {
     _dummy: Utilities.newBlob("", "application/octet-stream", ""),
   };
 
-  const resp = UrlFetchApp.fetch(CRM_ADD_PAGE, {
+  const resp = UrlFetchApp.fetch(CRM_BASE, {
     method: "post",
     headers: {
       Cookie: cookie,
       "X-Requested-With": "XMLHttpRequest",
       "User-Agent": CRM_USER_AGENT,
       "Referer": CRM_ADD_PAGE,
+      "Origin": "https://crm.makarma.com.tw",
+      "Accept": "application/json, text/javascript, */*; q=0.01",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
     },
     payload: payload,
     muteHttpExceptions: true,
@@ -678,13 +683,18 @@ function syncToCRM(info) {
     _dummy: Utilities.newBlob("", "application/octet-stream", ""),
   };
 
-  const resp = UrlFetchApp.fetch(pageUrl, {
+  const resp = UrlFetchApp.fetch(CRM_BASE, {
     method: "post",
     headers: {
       Cookie: cookie,
       "X-Requested-With": "XMLHttpRequest",
       "User-Agent": CRM_USER_AGENT,
       "Referer": pageUrl,
+      "Origin": "https://crm.makarma.com.tw",
+      "Accept": "application/json, text/javascript, */*; q=0.01",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
     },
     payload: payload,
     muteHttpExceptions: true,
