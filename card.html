@@ -218,59 +218,67 @@
                             {
                                 "type": "box",
                                 "layout": "horizontal",
-                                "alignItems": "center",
                                 "contents": [
-                                    {
-                                        "type": "image",
-                                        "url": LOGO_URL,
-                                        "size": "56px",
-                                        "aspectRatio": "1:1",
-                                        "aspectMode": "fit",
-                                        "flex": 0
-                                    },
-                                    {
-                                        "type": "text",
-                                        "text": "MaKarma",
-                                        "size": "md",
-                                        "weight": "bold",
-                                        "color": "#F39800",
-                                        "margin": "md",
-                                        "flex": 0
-                                    }
-                                ]
-                            },
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "margin": "md",
-                                "contents": [
-                                    {
-                                        "type": "text",
-                                        "text": data.title,
-                                        "size": "sm",
-                                        "color": "#F39800",
-                                        "weight": "bold"
-                                    },
                                     {
                                         "type": "box",
-                                        "layout": "baseline",
-                                        "margin": "sm",
-                                        "spacing": "sm",
+                                        "layout": "vertical",
+                                        "flex": 7,
                                         "contents": [
                                             {
                                                 "type": "text",
-                                                "text": data.name,
-                                                "size": "xl",
-                                                "weight": "bold",
+                                                "text": data.title,
+                                                "size": "sm",
                                                 "color": "#F39800",
-                                                "flex": 0
+                                                "weight": "bold"
                                             },
                                             {
+                                                "type": "box",
+                                                "layout": "baseline",
+                                                "margin": "sm",
+                                                "spacing": "sm",
+                                                "contents": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": data.name,
+                                                        "size": "xl",
+                                                        "weight": "bold",
+                                                        "color": "#F39800",
+                                                        "flex": 0
+                                                    },
+                                                    {
+                                                        "type": "text",
+                                                        "text": data.englishName,
+                                                        "size": "md",
+                                                        "color": "#333333",
+                                                        "flex": 0
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "type": "image",
+                                                "url": LOGO_URL,
+                                                "size": "70px",
+                                                "aspectRatio": "1:1",
+                                                "aspectMode": "fit",
+                                                "align": "start",
+                                                "margin": "md"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "flex": 3,
+                                        "justifyContent": "flex-start",
+                                        "contents": [
+                                            {
                                                 "type": "text",
-                                                "text": data.englishName,
-                                                "size": "md",
-                                                "color": "#333333",
-                                                "flex": 0
+                                                "text": "MaKarma",
+                                                "size": "sm",
+                                                "weight": "bold",
+                                                "color": "#F39800",
+                                                "align": "end",
+                                                "wrap": true
                                             }
                                         ]
                                     }
