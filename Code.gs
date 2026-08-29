@@ -304,6 +304,24 @@ function loginToCRM() {
   const cookieString = Object.keys(cookieMap)
     .map((name) => `${name}=${cookieMap[name]}`)
     .join("; ");
+
+  // 真實瀏覽器登入成功後，前端 JS 會照著回應裡的 goto 網址導頁，
+  // 這一步可能才是讓伺服器真正把 session 標記成「已登入」的地方；
+  // 我們是直接呼叫登入 API，跳過了這一步，補上避免 session 不穩定
+  try {
+    const loginResult = JSON.parse(resp.getContentText());
+    const gotoPath = loginResult.goto;
+    if (gotoPath) {
+      const gotoUrl = gotoPath.indexOf("http") === 0 ? gotoPath : "https://crm.makarma.com.tw" + gotoPath;
+      UrlFetchApp.fetch(gotoUrl, {
+        headers: { Cookie: cookieString, "User-Agent": CRM_USER_AGENT },
+        muteHttpExceptions: true,
+      });
+    }
+  } catch (err) {
+    Logger.log("登入後導頁失敗（不影響登入結果）：" + err);
+  }
+
   return cookieString;
 }
 
