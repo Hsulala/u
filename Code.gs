@@ -265,12 +265,18 @@ function loginToCRM() {
     throw new Error("尚未設定 CRM_USERNAME / CRM_PASSWORD");
   }
 
+  // cid 是伺服器發的長效期（90天）裝置識別 cookie，帶著上次拿到的一起送出，
+  // 讓伺服器認得這是「同一台裝置」在登入，而不是每次都當成全新、不受信任的裝置
+  const savedCid = props.getProperty("CRM_CID");
+  const loginHeaders = {
+    "X-Requested-With": "XMLHttpRequest",
+    "User-Agent": CRM_USER_AGENT,
+  };
+  if (savedCid) loginHeaders["Cookie"] = "cid=" + savedCid;
+
   const resp = UrlFetchApp.fetch(CRM_LOGIN_URL, {
     method: "post",
-    headers: {
-      "X-Requested-With": "XMLHttpRequest",
-      "User-Agent": CRM_USER_AGENT,
-    },
+    headers: loginHeaders,
     payload: {
       panel_uu: username,
       panel_pp: password,
@@ -301,6 +307,10 @@ function loginToCRM() {
     const value = pair.substring(eqIdx + 1);
     cookieMap[name] = value;
   });
+  if (cookieMap["cid"]) {
+    props.setProperty("CRM_CID", cookieMap["cid"]);
+  }
+
   const cookieString = Object.keys(cookieMap)
     .map((name) => `${name}=${cookieMap[name]}`)
     .join("; ");
