@@ -183,7 +183,7 @@
                 liff.closeWindow();
 
             } catch (error) {
-                alert(error.message);
+                alert(`${error.name || 'Error'}: ${error.message}\n${error.stack || ''}`);
                 console.error("發生錯誤:", error);
             } finally {
                 submitButton.disabled = false;
