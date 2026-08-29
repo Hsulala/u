@@ -100,6 +100,7 @@
   </div>
 
   <script>
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyxho67YFK74dy5Y76txc3AQ_5JEVLcny7I6-aRNvfLREB9A3ymaS4GSYwm4evPERYxiw/exec";
     const LAST_CLIENT_KEY = "worklogLastClient";
     let selectedActions = new Set();
 
@@ -168,9 +169,7 @@
     }
 
     async function callBackend(payload) {
-      // 這個頁面本身就是這支 GAS Web App 的 doGet 輸出，
-      // 所以直接 POST 回同一個網址（window.location.href）即可打到 doPost
-      const res = await fetch(window.location.href, {
+      const res = await fetch(GAS_WEB_APP_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
