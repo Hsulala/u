@@ -69,6 +69,7 @@
         const statusMessage = document.getElementById('status-message');
         const cardForm = document.getElementById('card-form');
         const LOCAL_STORAGE_KEY = 'maKarmaCardData_vFinal';
+        let isForwardedCard = false;
 
         // 防止表單預設提交行為
         cardForm.addEventListener('submit', function(e) {
@@ -87,7 +88,7 @@
                 
                 shareButton.innerText = '產生並分享名片';
                 shareButton.disabled = false;
-                loadData();
+                if (!loadFromShareLink()) loadData();
                 shareButton.addEventListener('click', handleShareClick);
                 
             } catch (error) {
@@ -107,6 +108,34 @@
                     statusMessage.style.display = 'none';
                 }, 3000);
             }
+        }
+
+        function loadFromShareLink() {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.get('name')) return false;
+
+            isForwardedCard = true;
+            nameInput.value = params.get('name') || '';
+            englishNameInput.value = params.get('englishName') || '';
+            titleInput.value = params.get('title') || '';
+            mobileInput.value = params.get('mobile') || '';
+            emailInput.value = params.get('email') || '';
+            lineIdInput.value = params.get('lineId') || '';
+
+            showMessage('已帶入這張名片的資料，確認無誤後即可分享給你的朋友', 'info');
+            return true;
+        }
+
+        function buildShareUrl(data) {
+            const params = new URLSearchParams({
+                name: data.name,
+                englishName: data.englishName,
+                title: data.title,
+                mobile: data.mobile,
+                email: data.email,
+                lineId: data.lineId,
+            });
+            return `https://liff.line.me/${LIFF_ID}?${params.toString()}`;
         }
 
         function loadData() {
@@ -177,6 +206,8 @@
                 email: emailInput.value.trim(),
                 lineId: lineIdInput.value.trim(),
             };
+
+            if (isForwardedCard) return data;
 
             try {
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
@@ -427,6 +458,20 @@
                         "layout": "vertical",
                         "spacing": "sm",
                         "contents": [
+                            {
+                                "type": "button",
+                                "style": "primary",
+                                "height": "sm",
+                                "color": "#FFA000",
+                                "action": {
+                                    "type": "uri",
+                                    "label": "轉發這張名片",
+                                    "uri": buildShareUrl(data)
+                                }
+                            },
+                            {
+                                "type": "separator"
+                            },
                             {
                                 "type": "button",
                                 "style": "primary",
