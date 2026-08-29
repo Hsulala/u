@@ -11,27 +11,31 @@
         h1 { text-align: center; color: var(--text-color); margin-bottom: 25px; font-size: 1.5em; }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9em; }
-        input { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1em; }
-        input:focus { outline: none; border-color: var(--primary-color); }
         button { width: 100%; padding: 15px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; }
         button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
         #status-message { text-align: center; margin-top: 15px; color: #666; display: none; }
         .success { color: #28a745; }
-        .error { color: #dc3545; }
+        .error { color: #dc3545; white-space: pre-wrap; word-break: break-all; }
+        #cardPreview { display: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px; }
+        #cardPreview .pv-title { color: var(--primary-color); font-weight: bold; font-size: 0.9em; }
+        #cardPreview .pv-name-row { margin: 6px 0 14px; }
+        #cardPreview .pv-name { font-size: 1.3em; font-weight: bold; color: var(--primary-color); }
+        #cardPreview .pv-englishName { margin-left: 8px; color: #555; }
+        #cardPreview .pv-row { margin-bottom: 8px; font-size: 0.95em; }
+        #cardPreview .pv-label { color: #999; display: inline-block; width: 4.5em; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>MaKarma 個人名片</h1>
-        <form id="card-form">
-            <div class="form-group"><label for="name">姓名</label><input type="text" id="name" placeholder="例如：徐昀" required></div>
-            <div class="form-group"><label for="englishName">英文姓名</label><input type="text" id="englishName" placeholder="例如：ULY HSU" required></div>
-            <div class="form-group"><label for="title">職稱</label><input type="text" id="title" placeholder="例如：行銷專員" required></div>
-            <div class="form-group"><label for="mobile">手機</label><input type="tel" id="mobile" placeholder="例如：0903966225" required></div>
-            <div class="form-group"><label for="email">Email</label><input type="email" id="email" placeholder="例如：yunshyu@gmail.com" required></div>
-            <div class="form-group"><label for="lineId">LINE ID</label><input type="text" id="lineId" placeholder="例如：yunshyu" required></div>
-        </form>
-        <button id="share-button" class="share-button" disabled>LIFF 初始化中...</button>
+        <div id="cardPreview">
+            <div class="pv-title" id="pv-title"></div>
+            <div class="pv-name-row"><span class="pv-name" id="pv-name"></span><span class="pv-englishName" id="pv-englishName"></span></div>
+            <div class="pv-row"><span class="pv-label">手機</span><span id="pv-mobile"></span></div>
+            <div class="pv-row"><span class="pv-label">LINE</span><span id="pv-lineId"></span></div>
+            <div class="pv-row"><span class="pv-label">Email</span><span id="pv-email"></span></div>
+        </div>
+        <button id="share-button" class="share-button" disabled>載入中...</button>
         <p id="status-message"></p>
     </div>
 
@@ -57,44 +61,71 @@
         // 【連結網址】
         const WEBSITE_URL = "https://www.makarma.com.tw/";
         const PERFORMANCE_URL = "https://sites.google.com/view/makamaseo/%E9%A6%96%E9%A0%81";
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyxho67YFK74dy5Y76txc3AQ_5JEVLcny7I6-aRNvfLREB9A3ymaS4GSYwm4evPERYxiw/exec";
         // ===================================================================
 
-        const nameInput = document.getElementById('name');
-        const englishNameInput = document.getElementById('englishName');
-        const titleInput = document.getElementById('title');
-        const mobileInput = document.getElementById('mobile');
-        const emailInput = document.getElementById('email');
-        const lineIdInput = document.getElementById('lineId');
         const shareButton = document.getElementById('share-button');
         const statusMessage = document.getElementById('status-message');
-        const cardForm = document.getElementById('card-form');
-        const LOCAL_STORAGE_KEY = 'maKarmaCardData_vFinal';
-        let isForwardedCard = false;
-
-        // 防止表單預設提交行為
-        cardForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-        });
+        const cardPreview = document.getElementById('cardPreview');
+        let cardData = null; // 目前這張名片的資料（自己的名片來自後端查詢，轉發的名片來自網址參數，兩者都是唯讀）
 
         async function main() {
             try {
                 await liff.init({ liffId: LIFF_ID });
                 console.log('LIFF 初始化成功');
-                
+
                 if (!liff.isInClient()) {
                     showMessage("請在 LINE App 內開啟此頁面", 'error');
                     return;
                 }
-                
-                shareButton.innerText = '產生並分享名片';
-                shareButton.disabled = false;
-                if (!loadFromShareLink()) loadData();
-                shareButton.addEventListener('click', handleShareClick);
-                
+
+                const forwarded = loadFromShareLink();
+                if (forwarded) {
+                    cardData = forwarded;
+                    showAsReady();
+                    return;
+                }
+
+                shareButton.innerText = '查詢名片資料中...';
+                const idToken = liff.getIDToken();
+                const res = await callBackend({ action: 'getMyCard', idToken });
+                if (res.status === 'success') {
+                    cardData = res.card;
+                    showAsReady();
+                } else {
+                    showMessage(res.message || '無法取得名片資料', 'error');
+                }
+
             } catch (error) {
                 console.error('LIFF 初始化錯誤:', error);
                 showMessage(`LIFF 初始化失敗：${error.message}`, 'error');
             }
+        }
+
+        function showAsReady() {
+            renderPreview(cardData);
+            shareButton.innerText = '分享名片';
+            shareButton.disabled = false;
+            shareButton.addEventListener('click', handleShareClick);
+        }
+
+        function renderPreview(data) {
+            document.getElementById('pv-title').textContent = data.title;
+            document.getElementById('pv-name').textContent = data.name;
+            document.getElementById('pv-englishName').textContent = data.englishName;
+            document.getElementById('pv-mobile').textContent = data.mobile;
+            document.getElementById('pv-lineId').textContent = data.lineId;
+            document.getElementById('pv-email').textContent = data.email;
+            cardPreview.style.display = 'block';
+        }
+
+        async function callBackend(payload) {
+            const res = await fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload),
+            });
+            return res.json();
         }
 
         function showMessage(message, type = 'info') {
@@ -112,18 +143,16 @@
 
         function loadFromShareLink() {
             const params = new URLSearchParams(window.location.search);
-            if (!params.get('name')) return false;
+            if (!params.get('name')) return null;
 
-            isForwardedCard = true;
-            nameInput.value = params.get('name') || '';
-            englishNameInput.value = params.get('englishName') || '';
-            titleInput.value = params.get('title') || '';
-            mobileInput.value = params.get('mobile') || '';
-            emailInput.value = params.get('email') || '';
-            lineIdInput.value = params.get('lineId') || '';
-
-            showMessage('已帶入這張名片的資料，確認無誤後即可分享給你的朋友', 'info');
-            return true;
+            return {
+                name: params.get('name') || '',
+                englishName: params.get('englishName') || '',
+                title: params.get('title') || '',
+                mobile: params.get('mobile') || '',
+                email: params.get('email') || '',
+                lineId: params.get('lineId') || '',
+            };
         }
 
         function buildShareUrl(data) {
@@ -138,102 +167,16 @@
             return `https://liff.line.me/${LIFF_ID}?${params.toString()}`;
         }
 
-        function loadData() {
-            try {
-                const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-                if (savedData) {
-                    const data = JSON.parse(savedData);
-                    nameInput.value = data.name || '';
-                    englishNameInput.value = data.englishName || '';
-                    titleInput.value = data.title || '';
-                    mobileInput.value = data.mobile || '';
-                    emailInput.value = data.email || '';
-                    lineIdInput.value = data.lineId || '';
-                    console.log('已載入儲存的資料');
-                } else if (liff.isLoggedIn()) {
-                    liff.getProfile().then(profile => {
-                        nameInput.value = profile.displayName;
-                        console.log('已載入 LINE 個人資料');
-                    }).catch(err => {
-                        console.error('讀取個人資料失敗:', err);
-                    });
-                }
-            } catch (error) {
-                console.error('載入資料時發生錯誤:', error);
-            }
-        }
-
-        function validateAndSaveData() {
-            // 檢查所有必填欄位
-            const requiredFields = [
-                { input: nameInput, name: '姓名' },
-                { input: englishNameInput, name: '英文姓名' },
-                { input: titleInput, name: '職稱' },
-                { input: mobileInput, name: '手機' },
-                { input: emailInput, name: 'Email' },
-                { input: lineIdInput, name: 'LINE ID' }
-            ];
-
-            for (let field of requiredFields) {
-                if (!field.input.value.trim()) {
-                    showMessage(`請填寫「${field.name}」欄位！`, 'error');
-                    field.input.focus();
-                    return null;
-                }
-            }
-
-            // 驗證 Email 格式
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(emailInput.value.trim())) {
-                showMessage('請輸入正確的 Email 格式！', 'error');
-                emailInput.focus();
-                return null;
-            }
-
-            // 驗證手機號碼格式
-            const phoneRegex = /^[0-9+\-\s()]{8,15}$/;
-            if (!phoneRegex.test(mobileInput.value.trim())) {
-                showMessage('請輸入正確的手機號碼格式！', 'error');
-                mobileInput.focus();
-                return null;
-            }
-
-            const data = {
-                name: nameInput.value.trim(),
-                englishName: englishNameInput.value.trim(),
-                title: titleInput.value.trim(),
-                mobile: mobileInput.value.trim(),
-                email: emailInput.value.trim(),
-                lineId: lineIdInput.value.trim(),
-            };
-
-            if (isForwardedCard) return data;
-
-            try {
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-                console.log('資料已儲存');
-            } catch (error) {
-                console.error('儲存資料時發生錯誤:', error);
-            }
-
-            return data;
-        }
-
         async function handleShareClick(event) {
             event.preventDefault(); // 防止任何預設行為
-            
+
             shareButton.disabled = true;
             shareButton.innerText = '處理中...';
-            
-            try {
-                const data = validateAndSaveData();
-                if (!data) {
-                    return;
-                }
 
+            try {
                 showMessage('正在分享名片...', 'info');
-                
-                const flexMessage = createFlexMessage(data);
+
+                const flexMessage = createFlexMessage(cardData);
                 console.log('準備分享 Flex Message:', flexMessage);
 
                 await liff.shareTargetPicker([flexMessage]);
@@ -256,7 +199,7 @@
                 }
             } finally {
                 shareButton.disabled = false;
-                shareButton.innerText = '產生並分享名片';
+                shareButton.innerText = '分享名片';
             }
         }
 
@@ -510,7 +453,7 @@
         
         // 為了保險起見，也在 window.onload 時執行
         window.onload = function() {
-            if (shareButton.disabled && shareButton.innerText === 'LIFF 初始化中...') {
+            if (shareButton.disabled && shareButton.innerText === '載入中...') {
                 main();
             }
         };

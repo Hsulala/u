@@ -22,6 +22,8 @@
 const SHEET_LOG = "日誌事件表";
 const SHEET_DEAL = "案件管道表";
 const MEETING_SHEET = "會議記錄表";
+const CARD_ROSTER_SHEET = "名片名單";
+const LINE_CHANNEL_ID = "2007968447"; // LIFF ID 開頭那段數字，用來驗證 liff.getIDToken() 拿到的 token
 const SHARED_CALENDAR_ID = "98965ff9c9be5cf34d9836f9d5aa671ba4c185a003084987e03649d18bbc1adb@group.calendar.google.com";
 const MEETING_TIME_ZONE = "Asia/Taipei";
 
@@ -84,6 +86,20 @@ function setupMeetingSheet() {
   Logger.log("會議記錄表已建立");
 }
 
+// 建立/重建「名片名單」分頁（在編輯器裡手動執行一次）
+// 名片內容由這張表控管：只有列在這裡、且「啟用」為 TRUE 的 LINE 使用者，才能用名片 LIFF 產生並分享名片
+function setupCardRosterSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CARD_ROSTER_SHEET);
+  if (!sheet) sheet = ss.insertSheet(CARD_ROSTER_SHEET);
+  sheet.clear();
+  sheet.appendRow([
+    "LINE使用者ID", "姓名", "英文姓名", "職稱", "手機", "Email", "LINE ID", "啟用",
+  ]);
+  sheet.setFrozenRows(1);
+  Logger.log("名片名單已建立。第一次使用名片 LIFF 時，畫面上會顯示你的 LINE 使用者ID，把它填進第一欄即可。");
+}
+
 // ============================================================
 // Web App 進入點（LIFF 頁面 + API）
 // ============================================================
@@ -125,6 +141,8 @@ function doPost(e) {
         return jsonOut(upsertMeeting(body, true));
       case "meetingUpdate":
         return jsonOut(upsertMeeting(body, false));
+      case "getMyCard":
+        return jsonOut(getCardForLineUser(body.idToken));
       default:
         return jsonOut({ status: "error", message: "未知的 action" });
     }
@@ -759,6 +777,53 @@ function searchMeetings(keyword) {
 }
 
 // ============================================================
+// 名片授權：驗證 liff.getIDToken() 拿到的 ID Token，比對「名片名單」分頁，
+// 只有登記在案、啟用中的 LINE 使用者才能拿到自己的名片內容
+// ============================================================
+function verifyLineIdToken(idToken) {
+  if (!idToken) throw new Error("缺少 LINE 登入資訊，請重新開啟這個頁面");
+
+  const resp = UrlFetchApp.fetch("https://api.line.me/oauth2/v2.1/verify", {
+    method: "post",
+    payload: { id_token: idToken, client_id: LINE_CHANNEL_ID },
+    muteHttpExceptions: true,
+  });
+  const result = JSON.parse(resp.getContentText());
+  if (resp.getResponseCode() !== 200 || !result.sub) {
+    throw new Error("LINE 登入驗證失敗：" + (result.error_description || resp.getContentText()));
+  }
+  return result.sub; // 這組是 LINE 內部使用者 ID，同一個人在同一個 Channel 下永遠固定不變
+}
+
+function getCardForLineUser(idToken) {
+  let userId;
+  try {
+    userId = verifyLineIdToken(idToken);
+  } catch (err) {
+    return { status: "error", message: String(err.message || err) };
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CARD_ROSTER_SHEET);
+  if (!sheet) {
+    return { status: "error", message: "尚未建立「" + CARD_ROSTER_SHEET + "」分頁，請聯絡管理員" };
+  }
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    const [rowUserId, name, englishName, title, mobile, email, lineId, enabled] = data[i];
+    if (rowUserId === userId && String(enabled).toUpperCase() === "TRUE") {
+      return { status: "success", card: { name, englishName, title, mobile, email, lineId } };
+    }
+  }
+
+  return {
+    status: "error",
+    message: "你尚未被加入名片名單，請把這組 ID 交給管理員加入「" + CARD_ROSTER_SHEET + "」分頁：" + userId,
+  };
+}
+
+// ============================================================
 // 重新同步：把 Sheet 裡所有「是否已同步CRM」= FALSE 的列，逐筆重新嘗試同步
 // ============================================================
 function resyncFailedCRMEntries() {
@@ -903,6 +968,7 @@ function onOpen() {
     .addItem("重新同步未成功的CRM記錄", "resyncFailedCRMEntries")
     .addItem("重建 Sheet 結構", "setupSheets")
     .addItem("建立會議記錄表", "setupMeetingSheet")
+    .addItem("建立名片名單表", "setupCardRosterSheet")
     .addItem("設定每晚彙整觸發器", "setupNightlyTrigger")
     .addToUi();
 }
