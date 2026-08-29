@@ -86,9 +86,7 @@
             document.getElementById("cancelEditButton").addEventListener("click", resetToCreateMode);
         });
 
-        // 已合併進工作日誌那支 GAS 專案，這個頁面本身就是 doGet 的輸出，
-        // 所以直接 POST 回同一個網址即可打到 doPost（不用手動貼網址）
-        const gasWebAppUrl = window.location.href;
+        const gasWebAppUrl = "https://script.google.com/macros/s/AKfycbyxho67YFK74dy5Y76txc3AQ_5JEVLcny7I6-aRNvfLREB9A3ymaS4GSYwm4evPERYxiw/exec";
 
         async function doSearch() {
             const keyword = document.getElementById("searchInput").value.trim();
@@ -273,7 +271,7 @@
                 liff.closeWindow();
 
             } catch (error) {
-                alert(error.message);
+                alert(`${error.name || 'Error'}: ${error.message}\n${error.stack || ''}`);
                 console.error("發生錯誤:", error);
             } finally {
                 submitButton.disabled = false;
