@@ -26,7 +26,7 @@ const SHARED_CALENDAR_ID = "98965ff9c9be5cf34d9836f9d5aa671ba4c185a003084987e036
 const MEETING_TIME_ZONE = "Asia/Taipei";
 
 // LINE LIFF ID（用來組成選單按鈕的連結）
-const LIFF_ID_WORKLOG = "PUT_WORKLOG_LIFF_ID_HERE"; // 建立好工作日誌的 LIFF app 後，把 ID 貼在這裡
+const LIFF_ID_WORKLOG = "2007968447-bNwIeM6Y"; // 建立好工作日誌的 LIFF app 後，把 ID 貼在這裡
 const LIFF_ID_CARD = "2007968447-L1XqQgMW";
 const LIFF_ID_MEETING = "2007968447-PQ3LQjeO";
 
