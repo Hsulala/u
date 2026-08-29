@@ -454,12 +454,13 @@ function testFullSubmit() {
     _dummy: Utilities.newBlob("", "application/octet-stream", ""),
   };
 
-  const resp = UrlFetchApp.fetch(CRM_BASE, {
+  const resp = UrlFetchApp.fetch(CRM_ADD_PAGE, {
     method: "post",
     headers: {
       Cookie: cookie,
       "X-Requested-With": "XMLHttpRequest",
       "User-Agent": CRM_USER_AGENT,
+      "Referer": CRM_ADD_PAGE,
     },
     payload: payload,
     muteHttpExceptions: true,
@@ -649,12 +650,13 @@ function syncToCRM(info) {
     _dummy: Utilities.newBlob("", "application/octet-stream", ""),
   };
 
-  const resp = UrlFetchApp.fetch(CRM_BASE, {
+  const resp = UrlFetchApp.fetch(pageUrl, {
     method: "post",
     headers: {
       Cookie: cookie,
       "X-Requested-With": "XMLHttpRequest",
       "User-Agent": CRM_USER_AGENT,
+      "Referer": pageUrl,
     },
     payload: payload,
     muteHttpExceptions: true,
