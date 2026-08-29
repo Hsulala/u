@@ -204,15 +204,6 @@
         }
 
         function createFlexMessage(data) {
-            const makarmaLetters = "MaKarma".split("").map(letter => ({
-                "type": "text",
-                "text": letter,
-                "size": "sm",
-                "weight": "bold",
-                "color": "#F39800",
-                "align": "center"
-            }));
-
             return {
                 "type": "flex",
                 "altText": `${data.name} 的個人名片 - MaKarma`,
@@ -222,75 +213,78 @@
                     "body": {
                         "type": "box",
                         "layout": "vertical",
-                        "paddingAll": "24px",
+                        "paddingAll": "20px",
                         "contents": [
                             {
                                 "type": "box",
                                 "layout": "horizontal",
+                                "alignItems": "center",
                                 "contents": [
                                     {
-                                        "type": "box",
-                                        "layout": "vertical",
-                                        "flex": 9,
-                                        "contents": [
-                                            {
-                                                "type": "text",
-                                                "text": data.title,
-                                                "size": "sm",
-                                                "color": "#F39800",
-                                                "weight": "bold"
-                                            },
-                                            {
-                                                "type": "box",
-                                                "layout": "baseline",
-                                                "margin": "sm",
-                                                "spacing": "sm",
-                                                "contents": [
-                                                    {
-                                                        "type": "text",
-                                                        "text": data.name,
-                                                        "size": "xl",
-                                                        "weight": "bold",
-                                                        "color": "#F39800",
-                                                        "flex": 0
-                                                    },
-                                                    {
-                                                        "type": "text",
-                                                        "text": data.englishName,
-                                                        "size": "md",
-                                                        "color": "#333333",
-                                                        "flex": 0
-                                                    }
-                                                ]
-                                            },
-                                            {
-                                                "type": "image",
-                                                "url": LOGO_URL,
-                                                "size": "60px",
-                                                "aspectRatio": "1:1",
-                                                "aspectMode": "fit",
-                                                "align": "start",
-                                                "margin": "md"
-                                            }
-                                        ]
+                                        "type": "image",
+                                        "url": LOGO_URL,
+                                        "size": "56px",
+                                        "aspectRatio": "1:1",
+                                        "aspectMode": "fit",
+                                        "flex": 0
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": "MaKarma",
+                                        "size": "md",
+                                        "weight": "bold",
+                                        "color": "#F39800",
+                                        "margin": "md",
+                                        "flex": 0
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "margin": "md",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": data.title,
+                                        "size": "sm",
+                                        "color": "#F39800",
+                                        "weight": "bold"
                                     },
                                     {
                                         "type": "box",
-                                        "layout": "vertical",
-                                        "flex": 1,
-                                        "contents": makarmaLetters
+                                        "layout": "baseline",
+                                        "margin": "sm",
+                                        "spacing": "sm",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": data.name,
+                                                "size": "xl",
+                                                "weight": "bold",
+                                                "color": "#F39800",
+                                                "flex": 0
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": data.englishName,
+                                                "size": "md",
+                                                "color": "#333333",
+                                                "flex": 0
+                                            }
+                                        ]
                                     }
                                 ]
                             },
                             {
                                 "type": "separator",
-                                "margin": "xl"
+                                "margin": "lg"
                             },
                             {
                                 "type": "box",
                                 "layout": "vertical",
-                                "margin": "xl",
-                                "spacing": "md",
+                                "margin": "lg",
+                                "spacing": "sm",
                                 "contents": [
                                     {
                                         "type": "box",
@@ -364,13 +358,13 @@
                             },
                             {
                                 "type": "separator",
-                                "margin": "xl"
+                                "margin": "lg"
                             },
                             {
                                 "type": "box",
                                 "layout": "vertical",
-                                "margin": "xl",
-                                "spacing": "sm",
+                                "margin": "lg",
+                                "spacing": "xs",
                                 "contents": [
                                     {
                                         "type": "text",
