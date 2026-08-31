@@ -222,7 +222,7 @@
                                     {
                                         "type": "box",
                                         "layout": "vertical",
-                                        "flex": 7,
+                                        "flex": 9,
                                         "contents": [
                                             {
                                                 "type": "text",
@@ -268,19 +268,15 @@
                                     {
                                         "type": "box",
                                         "layout": "vertical",
-                                        "flex": 3,
-                                        "justifyContent": "flex-start",
-                                        "contents": [
-                                            {
-                                                "type": "text",
-                                                "text": "MaKarma",
-                                                "size": "sm",
-                                                "weight": "bold",
-                                                "color": "#F39800",
-                                                "align": "end",
-                                                "wrap": true
-                                            }
-                                        ]
+                                        "flex": 1,
+                                        "contents": "MaKarma".split("").map((letter) => ({
+                                            "type": "text",
+                                            "text": letter,
+                                            "size": "sm",
+                                            "weight": "bold",
+                                            "color": "#F39800",
+                                            "align": "center"
+                                        }))
                                     }
                                 ]
                             },
