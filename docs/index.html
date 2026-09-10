@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MaKarma 成效展示</title>
+<style>
+  :root { --primary-color: #F39800; --background-color: #f9f9f9; --text-color: #333; --card-bg: #ffffff; --border-color: #e0e0e0; --green: #28a745; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background-color: var(--background-color); color: var(--text-color); }
+  .container { max-width: 640px; margin: 0 auto; }
+
+  /* 清單頁 */
+  h1 { text-align: center; font-size: 1.4em; margin: 10px 0 4px; }
+  .subtitle { text-align: center; color: #888; font-size: 0.9em; margin-bottom: 20px; }
+  #search { width: 100%; padding: 14px 16px; font-size: 1em; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 14px; }
+  .jump-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 22px; }
+  .jump-chip { font-size: 0.8em; background: #fff; border: 1px solid var(--border-color); border-radius: 999px; padding: 6px 12px; color: var(--text-color); text-decoration: none; cursor: pointer; }
+  .category-section { margin-bottom: 26px; }
+  .category-title { font-size: 1.15em; font-weight: bold; border-left: 4px solid var(--primary-color); padding-left: 10px; margin-bottom: 10px; }
+  .sub-title { font-size: 0.85em; color: #999; margin: 14px 0 8px 2px; }
+  .card { display: block; background: var(--card-bg); border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; text-decoration: none; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid var(--primary-color); cursor: pointer; }
+  .card .name { font-size: 1.1em; font-weight: bold; }
+  .card .domain { color: #999; font-size: 0.85em; margin-top: 4px; }
+  .card .launch { color: var(--primary-color); font-size: 0.8em; margin-top: 6px; }
+  #empty { text-align: center; color: #999; padding: 40px 0; display: none; }
+
+  /* 報告頁 */
+  a.back { color: var(--primary-color); text-decoration: none; font-size: 0.9em; }
+  .meta { color: #888; font-size: 0.9em; margin: 10px 0 20px; }
+  .meta span { margin-right: 14px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .stat-card { background: var(--card-bg); border-radius: 12px; padding: 18px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .stat-card .value { font-size: 1.9em; font-weight: 800; color: var(--primary-color); line-height: 1.1; }
+  .stat-card .label { color: #888; font-size: 0.85em; margin-top: 4px; }
+  section { margin-bottom: 28px; }
+  h2 { font-size: 1.1em; border-left: 4px solid var(--primary-color); padding-left: 10px; margin-bottom: 12px; }
+  .compare-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
+  .compare-col { background: var(--card-bg); border-radius: 12px; padding: 16px; text-align: center; }
+  .compare-col .tag { font-size: 0.8em; color: #999; }
+  .compare-col .num { font-size: 1.3em; font-weight: bold; margin-top: 4px; }
+  .compare-arrow { font-size: 1.5em; color: var(--primary-color); text-align: center; }
+  .compare-col.after .num { color: var(--green); }
+  .article-card { background: var(--card-bg); border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .article-card .title { font-weight: bold; margin-bottom: 6px; }
+  .article-card .pub { color: #999; font-size: 0.8em; margin-bottom: 10px; }
+  .article-stats { display: flex; gap: 16px; font-size: 0.9em; margin-bottom: 8px; }
+  .article-stats b { color: var(--primary-color); }
+  .keywords { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px; }
+  .keywords .heading { font-size: 0.75em; color: #aaa; margin-bottom: 4px; }
+  .keyword-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85em; padding: 3px 0; }
+  .keyword-row .query { color: #555; }
+  .keyword-row .clicks { color: var(--primary-color); font-weight: bold; white-space: nowrap; margin-left: 10px; }
+  .highlight { background: #fff7ec; border-left: 4px solid var(--primary-color); border-radius: 12px; padding: 16px 18px; white-space: pre-wrap; line-height: 1.6; }
+
+  footer { text-align: center; color: #bbb; font-size: 0.75em; margin-top: 30px; }
+  .loading, .error { text-align: center; color: #999; padding: 60px 0; }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <div class="loading">載入中...</div>
+</div>
+
+<script>
+// 這裡指向 Apps Script 部署的網址，只當純資料 API 用（JSONP，不受跨網域限制）
+var API_BASE = "https://script.google.com/macros/s/AKfycbwluZcgYfkmIq1z_IJo7tUPJFfmtOYgKD4wQQAM3fTqc_zYNQAIC_mZ2YAXtcuVrzCw/exec";
+
+function jsonp(url) {
+  return new Promise(function (resolve, reject) {
+    var cbName = "cb_" + Date.now() + "_" + Math.floor(Math.random() * 1e6);
+    var script = document.createElement("script");
+    var timeoutId = setTimeout(function () {
+      cleanup();
+      reject(new Error("請求逾時"));
+    }, 20000);
+
+    function cleanup() {
+      clearTimeout(timeoutId);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = function (data) {
+      cleanup();
+      resolve(data);
+    };
+    script.onerror = function () {
+      cleanup();
+      reject(new Error("載入失敗"));
+    };
+    script.src = url + (url.indexOf("?") !== -1 ? "&" : "?") + "callback=" + cbName;
+    document.body.appendChild(script);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+var app = document.getElementById("app");
+
+function showError(message) {
+  app.innerHTML = '<div class="error">' + escapeHtml(message) + '</div>';
+}
+
+// ---------- 清單頁 ----------
+
+function renderListPage() {
+  jsonp(API_BASE + "?api=list").then(function (data) {
+    renderGroups(data.groups || []);
+  }).catch(function (err) {
+    showError("載入客戶清單失敗：" + err.message);
+  });
+}
+
+function renderGroups(groups) {
+  var html = '';
+  html += '<h1>MaKarma 成效展示</h1>';
+  html += '<div class="subtitle">即時串接 Google Search Console 數據</div>';
+  html += '<input id="search" type="text" placeholder="搜尋客戶名稱或網域...">';
+
+  html += '<div class="jump-row">';
+  groups.forEach(function (g, i) {
+    html += '<a class="jump-chip" href="#cat-' + i + '">' + escapeHtml(g.category) + '</a>';
+  });
+  html += '</div>';
+
+  html += '<div id="list">';
+  groups.forEach(function (g, i) {
+    html += '<div class="category-section" id="cat-' + i + '">';
+    html += '<div class="category-title">' + escapeHtml(g.category) + '</div>';
+    g.subGroups.forEach(function (sub) {
+      html += '<div class="sub-group">';
+      if (sub.subCategory) html += '<div class="sub-title">' + escapeHtml(sub.subCategory) + '</div>';
+      sub.clients.forEach(function (c) {
+        var searchKey = (c.name + ' ' + c.domain).toLowerCase();
+        html += '<a class="card" data-search="' + escapeHtml(searchKey) + '" data-client-id="' + escapeHtml(c.id) + '">';
+        html += '<div class="name">' + escapeHtml(c.name) + '</div>';
+        html += '<div class="domain">' + escapeHtml(c.domain) + '</div>';
+        if (c.launchDate) html += '<div class="launch">上線日 ' + escapeHtml(c.launchDate) + '</div>';
+        html += '</a>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div id="empty">找不到符合的客戶</div>';
+
+  app.innerHTML = html;
+
+  app.querySelectorAll('.card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      var id = card.getAttribute('data-client-id');
+      navigateTo(id);
+    });
+  });
+
+  var search = document.getElementById('search');
+  var cards = Array.prototype.slice.call(app.querySelectorAll('.card'));
+  var subGroups = Array.prototype.slice.call(app.querySelectorAll('.sub-group'));
+  var sections = Array.prototype.slice.call(app.querySelectorAll('.category-section'));
+  var empty = document.getElementById('empty');
+
+  search.addEventListener('input', function () {
+    var q = search.value.trim().toLowerCase();
+    var visibleCount = 0;
+    cards.forEach(function (card) {
+      var match = card.getAttribute('data-search').indexOf(q) !== -1;
+      card.style.display = match ? '' : 'none';
+      if (match) visibleCount++;
+    });
+    subGroups.forEach(function (sg) {
+      var anyVisible = Array.prototype.slice.call(sg.querySelectorAll('.card')).some(function (c) { return c.style.display !== 'none'; });
+      sg.style.display = anyVisible ? '' : 'none';
+    });
+    sections.forEach(function (section) {
+      var anyVisible = Array.prototype.slice.call(section.querySelectorAll('.card')).some(function (c) { return c.style.display !== 'none'; });
+      section.style.display = anyVisible ? '' : 'none';
+    });
+    empty.style.display = visibleCount === 0 ? 'block' : 'none';
+  });
+}
+
+// ---------- 報告頁 ----------
+
+function renderReportPage(clientId) {
+  jsonp(API_BASE + "?api=client&id=" + encodeURIComponent(clientId)).then(function (data) {
+    if (data.status === 'error') {
+      showError(data.message || '找不到這個客戶的成效資料');
+      return;
+    }
+    renderReport(data);
+    document.title = data.client.name + ' · SEO 成效';
+  }).catch(function (err) {
+    showError('載入報告失敗：' + err.message);
+  });
+}
+
+function renderReport(data) {
+  var client = data.client;
+  var site = data.site;
+  var articles = data.articles || [];
+
+  var html = '';
+  html += '<a class="back" href="?">← 所有客戶</a>';
+  html += '<h1>' + escapeHtml(client.name) + '</h1>';
+  html += '<div class="meta"><span>' + escapeHtml(client.domain) + '</span>';
+  if (data.launchDateText) html += '<span>上線日 ' + escapeHtml(data.launchDateText) + '</span>';
+  html += '</div>';
+
+  html += '<section><h2>累計至今總量</h2><div class="stat-grid">';
+  html += '<div class="stat-card"><div class="value">' + site.keywordCount + '</div><div class="label">收錄關鍵字數</div></div>';
+  html += '<div class="stat-card"><div class="value">' + site.clicks + '</div><div class="label">總點擊</div></div>';
+  html += '<div class="stat-card"><div class="value">' + site.impressions + '</div><div class="label">總曝光</div></div>';
+  html += '<div class="stat-card"><div class="value">' + site.ctrText + '</div><div class="label">平均CTR</div></div>';
+  html += '<div class="stat-card" style="grid-column: 1 / -1;"><div class="value">' + site.avgPositionText + '</div><div class="label">平均排名</div></div>';
+  html += '</div></section>';
+
+  if (data.showComparison && data.comparison) {
+    var c = data.comparison;
+    html += '<section><h2>合作滿一年，前後對比</h2><div class="compare-grid">';
+    html += '<div class="compare-col"><div class="tag">' + escapeHtml(c.beforeDate) + '</div>';
+    html += '<div class="num">' + c.beforeClicks + ' 點擊</div><div class="num">' + c.beforeImpressions + ' 曝光</div><div class="num">' + c.beforeKeywordCount + ' 關鍵字</div></div>';
+    html += '<div class="compare-arrow">→</div>';
+    html += '<div class="compare-col after"><div class="tag">現在</div>';
+    html += '<div class="num">' + c.afterClicks + ' 點擊</div><div class="num">' + c.afterImpressions + ' 曝光</div><div class="num">' + c.afterKeywordCount + ' 關鍵字</div></div>';
+    html += '</div></section>';
+  }
+
+  if (articles.length > 0) {
+    html += '<section><h2>文章成效</h2>';
+    articles.forEach(function (a) {
+      html += '<div class="article-card">';
+      html += '<div class="title">' + escapeHtml(a.title) + '</div>';
+      if (a.publishDateText) html += '<div class="pub">發布日 ' + escapeHtml(a.publishDateText) + '</div>';
+      html += '<div class="article-stats"><div>點擊 <b>' + a.clicks + '</b></div><div>曝光 <b>' + a.impressions + '</b></div><div>排名 <b>' + a.avgPosition.toFixed(1) + '</b></div></div>';
+      if (a.topKeywords && a.topKeywords.length > 0) {
+        html += '<div class="keywords"><div class="heading">帶量關鍵字</div>';
+        a.topKeywords.forEach(function (kw) {
+          html += '<div class="keyword-row"><span class="query">' + escapeHtml(kw.query) + '</span><span class="clicks">' + kw.clicks + ' 點擊</span></div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</section>';
+  }
+
+  if (client.highlight) {
+    html += '<section><h2>合作亮點</h2><div class="highlight">' + escapeHtml(client.highlight) + '</div></section>';
+  }
+
+  html += '<footer>資料每日自動同步 Google Search Console，數字為累計至今總量</footer>';
+
+  app.innerHTML = html;
+}
+
+// ---------- 路由 ----------
+
+function navigateTo(clientId) {
+  var url = clientId ? ('?client=' + encodeURIComponent(clientId)) : '?';
+  history.pushState({ clientId: clientId }, '', url);
+  route();
+}
+
+function route() {
+  var params = new URLSearchParams(location.search);
+  var clientId = params.get('client');
+  app.innerHTML = '<div class="loading">載入中...</div>';
+  if (clientId) {
+    renderReportPage(clientId);
+  } else {
+    document.title = 'MaKarma 成效展示';
+    renderListPage();
+  }
+}
+
+window.addEventListener('popstate', route);
+route();
+</script>
+</body>
+</html>
