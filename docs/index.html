@@ -230,6 +230,17 @@ function renderReport(data) {
     html += '</div></section>';
   }
 
+  if (data.showCompetitor && data.competitor) {
+    var comp = data.competitor;
+    html += '<section><h2>與競爭對手比較</h2><div class="compare-grid">';
+    html += '<div class="compare-col after"><div class="tag">我們</div>';
+    html += '<div class="num">' + comp.usClicks + ' 點擊</div><div class="num">' + comp.usImpressions + ' 曝光</div><div class="num">排名 ' + comp.usAvgPositionText + '</div></div>';
+    html += '<div class="compare-arrow">VS</div>';
+    html += '<div class="compare-col"><div class="tag">' + escapeHtml(comp.name || '競爭對手') + '</div>';
+    html += '<div class="num">' + comp.clicks + ' 點擊</div><div class="num">' + comp.impressions + ' 曝光</div><div class="num">排名 ' + comp.avgPositionText + '</div></div>';
+    html += '</div></section>';
+  }
+
   if (articles.length > 0) {
     html += '<section><h2>文章成效</h2>';
     articles.forEach(function (a) {
