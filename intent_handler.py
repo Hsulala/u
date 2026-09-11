@@ -1,6 +1,6 @@
 import os, json, re
 from openai import OpenAI
-from sheets_loader import load_templates
+from sheets_loader import load_templates, load_qa_entries
 
 client = OpenAI(api_key=os.environ["GROK_API_KEY"], base_url="https://api.x.ai/v1")
 
@@ -55,8 +55,18 @@ def _fallback_reply(message: str) -> str:
     )
     return resp.choices[0].message.content.strip()
 
+def _match_qa(message: str) -> str | None:
+    for entry in load_qa_entries():
+        if any(kw in message for kw in entry["keywords"]):
+            return entry["answer"]
+    return None
+
 def process_message(message: str) -> str:
     try:
+        qa_answer = _match_qa(message)
+        if qa_answer:
+            return qa_answer
+
         templates = load_templates()
         result = _classify(message)
         intent = result.get("intent","unknown")

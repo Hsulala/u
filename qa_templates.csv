@@ -1,4 +1,5 @@
-﻿"intent","template"
+﻿"intent","template","keywords"
+"qa_office_hours","我們的服務時間是平日 9:00-18:00，非上班時間留言我們會盡快回覆您🙏","上班時間,營業時間,幾點上班,幾點下班"
 "payment_personal","稅金的部分再請您有空時協助轉帳唷🙏🙏
 完成後再請跟我說，我請會計查帳😊
 匯款金額：{amount}元
