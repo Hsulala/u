@@ -8,9 +8,9 @@
  * 3. 專案設定 →指令碼屬性（Script Properties）新增：
  *    - TELEGRAM_BOT_TOKEN   你的 Telegram bot token
  *    - TELEGRAM_CHAT_ID     你的 Telegram chat id
- *    - CRM_USERNAME         登入 makarma CRM 用的帳號
+ *    - CRM_USERNAME         登入 makarma CRM 用的員工帳號（該員工需在CRM後台「允許API呼叫」）
  *    - CRM_PASSWORD         登入 makarma CRM 用的密碼
- *    程式會自動登入拿 session，過期時自動重新登入，不需要手動抓 Cookie
+ *    程式會呼叫 CRM 官方 REST API 自動領 token，過期/失效時自動重新領取
  * 4. 部署 → 新增部署作業 → 網頁應用程式，執行身分「我」，存取權「僅限我自己」
  *    （若要讓 LINE LIFF 打得到，存取權要選「任何人」，因為 LIFF 是從 LINE App 內部發出請求，
  *      沒有你的 Google 登入狀態，必須開放）
@@ -23,6 +23,7 @@ const SHEET_LOG = "日誌事件表";
 const SHEET_DEAL = "案件管道表";
 const MEETING_SHEET = "會議記錄表";
 const CARD_ROSTER_SHEET = "名片名單";
+const QA_SHEET = "問答範本";
 const LINE_CHANNEL_ID = "2007968447"; // LIFF ID 開頭那段數字，用來驗證 liff.getIDToken() 拿到的 token
 const SHARED_CALENDAR_ID = "98965ff9c9be5cf34d9836f9d5aa671ba4c185a003084987e03649d18bbc1adb@group.calendar.google.com";
 const MEETING_TIME_ZONE = "Asia/Taipei";
@@ -32,9 +33,10 @@ const LIFF_ID_WORKLOG = "2007968447-bNwIeM6Y"; // 建立好工作日誌的 LIFF 
 const LIFF_ID_CARD = "2007968447-L1XqQgMW";
 const LIFF_ID_MEETING = "2007968447-PQ3LQjeO";
 
-const CRM_BASE = "https://crm.makarma.com.tw/client/spanel/index.php";
-const CRM_ADD_PAGE = "https://crm.makarma.com.tw/client/spanel/index.php?mode=add";
-const DEFAULT_TAX_ID = "96756074"; // 沒有真實統編時的暫代值
+// 業務戰情室（同事另外架設的 Cloudflare 應用，管客戶/Pipeline/戰報），外部網站直接開連結即可，不需要 LIFF ID
+const SALES_WAR_ROOM_URL = "https://sales-war-room.gorgeousamy2022.chatgpt.site";
+
+const DEFAULT_TAX_ID = "96756074"; // 沒有真實統編時的暫代值（CRM API 允許這組統編重複）
 
 // 動作類型 → 案件管道階段 對照（CRM 狀態 → 我們自己的三分類）
 const STAGE_MAP = {
@@ -128,18 +130,25 @@ function doPost(e) {
   try {
     switch (body.action) {
       case "submit":
+        requireAuthorizedUser(body.idToken);
         return jsonOut(handleSubmit(body));
       case "lookupTaxId":
+        requireAuthorizedUser(body.idToken);
         return jsonOut({ status: "success", candidates: lookupTaxId(body.companyName) });
       case "updateDeal":
+        requireAuthorizedUser(body.idToken);
         return jsonOut(handleUpdateDeal(body));
       case "getDealStage":
+        requireAuthorizedUser(body.idToken);
         return jsonOut({ status: "success", deal: getDealForClient(body.clientName) });
       case "meetingSearch":
+        requireAuthorizedUser(body.idToken);
         return jsonOut({ status: "success", meetings: searchMeetings(body.keyword || "") });
       case "meetingCreate":
+        requireAuthorizedUser(body.idToken);
         return jsonOut(upsertMeeting(body, true));
       case "meetingUpdate":
+        requireAuthorizedUser(body.idToken);
         return jsonOut(upsertMeeting(body, false));
       case "getMyCard":
         return jsonOut(getCardForLineUser(body.idToken));
@@ -180,20 +189,9 @@ function handleSubmit(data) {
     try {
       let isNewClient = isNewClientInput;
       let crmId = data.crmId || "";
-      let duplicateNotice = "";
-
-      if (isNewClient && taxId !== DEFAULT_TAX_ID) {
-        // 選了「新客戶」但有填真正的統編：先查 CRM 有沒有這組統編，避免建出重複客戶
-        const existingId = findClientIdByTaxId(taxId);
-        if (existingId) {
-          isNewClient = false;
-          crmId = existingId;
-          duplicateNotice = `統編 ${taxId} 已存在於 CRM（編號 ${existingId}），已自動改成更新該筆客戶，沒有新增重複資料`;
-        }
-      }
 
       if (!isNewClient && !crmId) {
-        // 已有客戶但沒填編號，先用名稱搜尋 CRM 找出編號
+        // 已有客戶但沒填編號，先用名稱查詢 CRM 找出編號
         crmId = findClientIdByName(clientName);
         if (!crmId) {
           crmResult = {
@@ -204,6 +202,7 @@ function handleSubmit(data) {
       }
 
       if (crmId || isNewClient) {
+        // isNewClient 且統編其實已存在的狀況，由 syncToCRM 收到 duplicate_tax_id 時自動改走更新
         crmResult = syncToCRM({
           clientName: clientName,
           status: crmStatusToCode(data.crmStatus),
@@ -212,9 +211,6 @@ function handleSubmit(data) {
           isNewClient: isNewClient,
           crmId: crmId || "0",
         });
-        if (duplicateNotice) {
-          crmResult.message = duplicateNotice + (crmResult.message ? "；" + crmResult.message : "");
-        }
       }
     } catch (err) {
       crmResult = { synced: false, message: "同步失敗：" + err };
@@ -267,316 +263,137 @@ function lookupTaxId(companyName) {
 }
 
 // ============================================================
-// CRM 自動登入（存帳密，session 過期會自動重新登入，不用手動抓 Cookie）
+// CRM 官方 REST API（客戶資料 API：領 token → 查詢/新增/更新）
+// 文件：CRMAPI使用指南.pdf
+// 前提：CRM_USERNAME 這個員工帳號要先在後台「工作人員 → 編輯該員工 → 主要頁籤 →
+//       允許 API 呼叫」打開，且帳號狀態為啟用中，否則會收到 api_not_allowed。
 // ============================================================
-const CRM_LOGIN_URL = "https://crm.makarma.com.tw/spanel/api.php";
-const CRM_USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36";
+const CRM_REST_URL = "https://crm.makarma.com.tw/client/rest/index.php";
 
-function loginToCRM() {
+// 每次重新領取 token 都會讓舊 token 立刻失效，所以領到後存進 Script Properties 重複使用，
+// 只在沒有快取或收到 auth_failed（token 過期/失效）時才重新領取。
+function getCRMToken(forceNew) {
   const props = PropertiesService.getScriptProperties();
+  if (!forceNew) {
+    const cached = props.getProperty("CRM_TOKEN");
+    if (cached) return cached;
+  }
+
   const username = props.getProperty("CRM_USERNAME");
   const password = props.getProperty("CRM_PASSWORD");
   if (!username || !password) {
     throw new Error("尚未設定 CRM_USERNAME / CRM_PASSWORD");
   }
 
-  // cid 是伺服器發的長效期（90天）裝置識別 cookie，帶著上次拿到的一起送出，
-  // 讓伺服器認得這是「同一台裝置」在登入，而不是每次都當成全新、不受信任的裝置
-  const savedCid = props.getProperty("CRM_CID");
-  const loginHeaders = {
-    "X-Requested-With": "XMLHttpRequest",
-    "User-Agent": CRM_USER_AGENT,
-  };
-  if (savedCid) loginHeaders["Cookie"] = "cid=" + savedCid;
-
-  const resp = UrlFetchApp.fetch(CRM_LOGIN_URL, {
+  const resp = UrlFetchApp.fetch(CRM_REST_URL, {
     method: "post",
-    headers: loginHeaders,
-    payload: {
-      panel_uu: username,
-      panel_pp: password,
-      mode: "sign_in",
-      goto: "/client/spanel/",
-      verify_code: "",
-    },
+    contentType: "application/json; charset=utf-8",
+    payload: JSON.stringify({ username: username, password: password }),
     muteHttpExceptions: true,
-    followRedirects: false,
   });
 
-  const headers = resp.getAllHeaders();
-  const rawSetCookie = headers["Set-Cookie"] || headers["set-cookie"];
-  if (!rawSetCookie) {
-    throw new Error(
-      "登入沒有拿到 Set-Cookie（HTTP " + resp.getResponseCode() + "）。回應：" +
-      resp.getContentText().slice(0, 200)
-    );
-  }
-  const cookieList = Array.isArray(rawSetCookie) ? rawSetCookie : [rawSetCookie];
-  // 整理成乾淨的 Cookie 字串：同名的只留最後一筆，避免重複 PHPSESSID 讓伺服器解析混亂
-  const cookieMap = {};
-  cookieList.forEach((c) => {
-    const pair = c.split(";")[0];
-    const eqIdx = pair.indexOf("=");
-    if (eqIdx === -1) return;
-    const name = pair.substring(0, eqIdx);
-    const value = pair.substring(eqIdx + 1);
-    cookieMap[name] = value;
-  });
-  if (cookieMap["cid"]) {
-    props.setProperty("CRM_CID", cookieMap["cid"]);
-  }
-
-  const cookieString = Object.keys(cookieMap)
-    .map((name) => `${name}=${cookieMap[name]}`)
-    .join("; ");
-
-  // 真實瀏覽器登入成功後，前端 JS 會照著回應裡的 goto 網址導頁，
-  // 這一步可能才是讓伺服器真正把 session 標記成「已登入」的地方；
-  // 我們是直接呼叫登入 API，跳過了這一步，補上避免 session 不穩定
+  let result;
   try {
-    const loginResult = JSON.parse(resp.getContentText());
-    const gotoPath = loginResult.goto;
-    if (gotoPath) {
-      const gotoUrl = gotoPath.indexOf("http") === 0 ? gotoPath : "https://crm.makarma.com.tw" + gotoPath;
-      UrlFetchApp.fetch(gotoUrl, {
-        headers: { Cookie: cookieString, "User-Agent": CRM_USER_AGENT },
-        muteHttpExceptions: true,
-      });
-    }
+    result = JSON.parse(resp.getContentText());
   } catch (err) {
-    Logger.log("登入後導頁失敗（不影響登入結果）：" + err);
+    throw new Error("領取 token 回應無法解析（HTTP " + resp.getResponseCode() + "）：" + resp.getContentText().slice(0, 200));
+  }
+  if (result.status !== "success" || !result.data || !result.data.token) {
+    throw new Error("CRM 登入失敗：" + (result.message || JSON.stringify(result)));
   }
 
-  return cookieString;
+  props.setProperty("CRM_TOKEN", result.data.token);
+  return result.data.token;
 }
 
-// 取得目前可用的 CRM Cookie（每次都直接重新登入，避免快取到失效的 session）
-function getCRMCookie() {
-  return loginToCRM();
-}
-
-// 診斷用：在編輯器裡直接執行這個函式，然後看「執行項目」或「查看 → 記錄」的 Log 輸出
-function testCRMLogin() {
-  Logger.log("開始測試登入...");
-  const props = PropertiesService.getScriptProperties();
-  const username = props.getProperty("CRM_USERNAME");
-  const password = props.getProperty("CRM_PASSWORD");
-  Logger.log("帳號長度：" + (username ? username.length : 0) + "，密碼長度：" + (password ? password.length : 0));
-
-  const loginResp = UrlFetchApp.fetch(CRM_LOGIN_URL, {
-    method: "post",
-    headers: { "X-Requested-With": "XMLHttpRequest" },
-    payload: {
-      panel_uu: username,
-      panel_pp: password,
-      mode: "sign_in",
-      goto: "/client/spanel/",
-      verify_code: "",
-    },
-    muteHttpExceptions: true,
-    followRedirects: false,
-  });
-  Logger.log("登入請求狀態碼：" + loginResp.getResponseCode());
-  Logger.log("回應內容：" + loginResp.getContentText().slice(0, 300));
-
-  const headers = loginResp.getAllHeaders();
-  const rawSetCookie = headers["Set-Cookie"] || headers["set-cookie"];
-  if (!rawSetCookie) {
-    Logger.log("沒有 Set-Cookie，登入失敗");
-    return;
+// 呼叫查詢／新增／更新，統一處理 Bearer token；如果 token 失效會自動重新領取一次再重試
+function crmApiRequest(method, opts) {
+  opts = opts || {};
+  let url = CRM_REST_URL;
+  if (opts.query) {
+    const qs = Object.keys(opts.query)
+      .map((k) => encodeURIComponent(k) + "=" + encodeURIComponent(opts.query[k]))
+      .join("&");
+    if (qs) url += "?" + qs;
   }
-  const cookieList = Array.isArray(rawSetCookie) ? rawSetCookie : [rawSetCookie];
-  const cookie = cookieList.map((c) => c.split(";")[0]).join("; ");
-  Logger.log("拿到 cookie：" + cookie.substring(0, 20) + "...");
 
-  const check = UrlFetchApp.fetch(CRM_ADD_PAGE, {
-    headers: { Cookie: cookie, "X-Requested-With": "XMLHttpRequest" },
-    muteHttpExceptions: true,
-  });
-  const snippet = check.getContentText().replace(/\s+/g, " ").slice(0, 300);
-  Logger.log("驗證頁面片段：" + snippet);
-  Logger.log(snippet.indexOf("sign_in.php") !== -1 ? "結論：還是沒登入成功" : "結論：登入成功了！");
-}
-
-// 診斷用：仔細檢查登入回應到底設定了哪些 Cookie，看有沒有漏抓
-function testLoginCookieDetail() {
-  const props = PropertiesService.getScriptProperties();
-  const username = props.getProperty("CRM_USERNAME");
-  const password = props.getProperty("CRM_PASSWORD");
-
-  const resp = UrlFetchApp.fetch(CRM_LOGIN_URL, {
-    method: "post",
-    headers: { "X-Requested-With": "XMLHttpRequest" },
-    payload: {
-      panel_uu: username,
-      panel_pp: password,
-      mode: "sign_in",
-      goto: "/client/spanel/",
-      verify_code: "",
-    },
-    muteHttpExceptions: true,
-    followRedirects: false,
-  });
-
-  const headers = resp.getAllHeaders();
-  Logger.log("所有回應標頭的 key：" + Object.keys(headers).join(", "));
-
-  const rawSetCookie = headers["Set-Cookie"] || headers["set-cookie"];
-  Logger.log("Set-Cookie 原始型態：" + (Array.isArray(rawSetCookie) ? "陣列，共 " + rawSetCookie.length + " 個" : "單一字串"));
-  Logger.log("Set-Cookie 完整內容（JSON）：" + JSON.stringify(rawSetCookie));
-}
-
-// 診斷用：確認登入後拿「新增客戶」頁面，到底回傳什麼內容
-function testAddPage() {
-  const cookie = loginToCRM();
-  Logger.log("已登入，cookie：" + cookie.substring(0, 20) + "...");
-
-  const resp = UrlFetchApp.fetch(CRM_ADD_PAGE, {
-    headers: { Cookie: cookie, "X-Requested-With": "XMLHttpRequest" },
-    muteHttpExceptions: true,
-  });
-  const html = resp.getContentText();
-  Logger.log("狀態碼：" + resp.getResponseCode() + "，內容長度：" + html.length);
-
-  const idx = html.indexOf("cmark");
-  if (idx === -1) {
-    Logger.log("整份內容裡完全沒有 cmark 這個字");
-    Logger.log("標題附近內容：" + html.replace(/\s+/g, " ").slice(0, 200));
-    Logger.log("內容中段（第 2000-2300 字）：" + html.replace(/\s+/g, " ").slice(2000, 2300));
-    Logger.log("內容尾端（最後 300 字）：" + html.replace(/\s+/g, " ").slice(-300));
-  } else {
-    Logger.log("找到 cmark，位置：" + idx + "，前後文：" + html.substring(Math.max(0, idx - 60), idx + 100).replace(/\s+/g, " "));
-  }
-}
-
-// 診斷用：一次跑完整個流程（登入→抓cmark→送出），並印出詳細的送出內容跟完整回應
-function testFullSubmit() {
-  const cookie = loginToCRM();
-  Logger.log("登入完成，cookie：" + cookie.substring(0, 20) + "...");
-
-  const pageResp = UrlFetchApp.fetch(CRM_ADD_PAGE, {
-    headers: {
-      Cookie: cookie,
-      "X-Requested-With": "XMLHttpRequest",
-      "User-Agent": CRM_USER_AGENT,
-    },
-    muteHttpExceptions: true,
-  });
-  const html = pageResp.getContentText();
-  const cmarkMatch = html.match(/name="cmark"\s+id="cmark"\s+value="([a-f0-9]+)"/);
-  if (!cmarkMatch) {
-    Logger.log("抓不到 cmark，內容長度：" + html.length);
-    Logger.log("內容：" + html.replace(/\s+/g, " ").slice(0, 800));
-    return;
-  }
-  const cmark = cmarkMatch[1];
-  Logger.log("拿到 cmark：" + cmark);
-
-  const payload = {
-    company_name: "測試診斷勿刪" + new Date().getTime(),
-    status: "dev",
-    sales_staff_id: "9",
-    industry: "",
-    data_source: "",
-    type: "",
-    contact_name_1: "",
-    contact_mobile_1: "",
-    phone_1: "",
-    referrer: "",
-    fax: "",
-    tax_id_number: "96756074",
-    contact_email_1: "",
-    address: "",
-    web_site: "",
-    work_log_content: "測試診斷內容",
-    appointment_type: "",
-    appointment_date: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"),
-    mode: "insert",
-    id: "0",
-    cmark: cmark,
-    _dummy: Utilities.newBlob("", "application/octet-stream", ""),
+  const doFetch = (token) => {
+    const fetchOpts = {
+      method: method,
+      headers: { Authorization: "Bearer " + token },
+      muteHttpExceptions: true,
+    };
+    if (opts.body) {
+      fetchOpts.contentType = "application/json; charset=utf-8";
+      fetchOpts.payload = JSON.stringify(opts.body);
+    }
+    const resp = UrlFetchApp.fetch(url, fetchOpts);
+    try {
+      return JSON.parse(resp.getContentText());
+    } catch (err) {
+      throw new Error("CRM 回應無法解析（HTTP " + resp.getResponseCode() + "）：" + resp.getContentText().slice(0, 200));
+    }
   };
 
-  const resp = UrlFetchApp.fetch(CRM_BASE, {
-    method: "post",
-    headers: {
-      Cookie: cookie,
-      "X-Requested-With": "XMLHttpRequest",
-      "User-Agent": CRM_USER_AGENT,
-      "Referer": CRM_ADD_PAGE,
-      "Origin": "https://crm.makarma.com.tw",
-      "Accept": "application/json, text/javascript, */*; q=0.01",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "same-origin",
-    },
-    payload: payload,
-    muteHttpExceptions: true,
-  });
-
-  Logger.log("送出狀態碼：" + resp.getResponseCode());
-  const actualContentType = resp.getHeaders()["Content-Type"] || resp.getHeaders()["content-type"];
-  Logger.log("回應 Content-Type：" + actualContentType);
-  const body = resp.getContentText();
-  Logger.log("回應長度：" + body.length);
-  Logger.log("回應內容（前 1500 字）：" + body.replace(/\s+/g, " ").slice(0, 1500));
-
-  ["必填", "錯誤", "失敗", "invalid", "required", "denied", "權限"].forEach((kw) => {
-    const i = body.indexOf(kw);
-    if (i !== -1) {
-      Logger.log(`關鍵字「${kw}」出現：` + body.substring(Math.max(0, i - 50), i + 80).replace(/\s+/g, " "));
-    }
-  });
+  let result = doFetch(getCRMToken(false));
+  if (result.status === "fail" && result.error_code === "auth_failed") {
+    result = doFetch(getCRMToken(true));
+  }
+  return result;
 }
 
-// 包一層 fetch：自動帶入登入後的 Cookie
-function crmFetch(url, options) {
-  options = options || {};
-  const cookie = getCRMCookie();
-  options.headers = Object.assign({}, options.headers, { Cookie: cookie });
-  options.muteHttpExceptions = true;
-  return UrlFetchApp.fetch(url, options);
+// 診斷用：在編輯器裡直接執行這個函式，看「執行項目」或「查看 → 記錄」的 Log 輸出
+function testCRMApiLogin() {
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty("CRM_TOKEN"); // 強制重新領一次，確認帳密真的可行
+  try {
+    const token = getCRMToken(true);
+    Logger.log("領取 token 成功，長度：" + token.length);
+  } catch (err) {
+    Logger.log("領取 token 失敗：" + err);
+    return;
+  }
+
+  // 用剛拿到的 token 查一筆隨便的公司名稱，確認查詢流程也通（查無資料是正常的，代表 API 有回應）
+  const result = crmApiRequest("get", { query: { company_name: "測試 API 公司 001" } });
+  Logger.log("查詢測試回應：" + JSON.stringify(result));
+}
+
+// 診斷用：實際新增一筆「看得出來是測試」的客戶資料，驗證新增流程真的能寫進 CRM。
+// - 統編用 96756074（文件裡明確允許跟其他客戶重複的暫代碼），不會跟真實客戶的統編卡到。
+// - 公司名稱帶時間戳記方便辨認，測完請自行到 CRM 網頁上手動刪除這筆測試資料。
+function testCRMApiCreate() {
+  const testName = "測試診斷勿刪_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
+  const result = syncToCRM({
+    clientName: testName,
+    status: crmStatusToCode("開發中"),
+    taxId: DEFAULT_TAX_ID,
+    note: "這是 testCRMApiCreate() 建立的測試資料，確認可刪除",
+    isNewClient: true,
+    crmId: "0",
+  });
+  Logger.log("新增測試結果：" + JSON.stringify(result));
+  if (result.synced) {
+    Logger.log(`成功！公司名稱「${testName}」、CRM 編號 ${result.crmId}。請到 CRM 網頁上手動刪除這筆測試資料。`);
+  }
 }
 
 // ============================================================
-// 用客戶名稱搜尋 CRM，找出既有客戶的編號
-// ⚠️ 這個 column index 對應是根據畫面上的欄位順序（NO./編號/狀態/行業別/公司名稱...）猜測的，
-//    第一次用請實際測一筆已知客戶確認有正確抓到編號，如果不對再回報，一起對照修正
+// 用客戶名稱查詢 CRM，找出既有客戶的編號（company_name 需完全相符，不支援模糊搜尋）
 // ============================================================
 function findClientIdByName(name) {
-  const url =
-    "https://crm.makarma.com.tw/client/spanel/index.php?mode=get_list" +
-    "&draw=1&start=0&length=10" +
-    "&search%5Bvalue%5D=" + encodeURIComponent(name) +
-    "&search%5Bregex%5D=false";
-
-  const resp = crmFetch(url, {
-    headers: { "X-Requested-With": "XMLHttpRequest" },
-  });
-
-  try {
-    const result = JSON.parse(resp.getContentText());
-    if (result.data && result.data.length > 0) {
-      return result.data[0][0]; // 假設第一欄是客戶編號
-    }
-  } catch (err) {
-    Logger.log("客戶搜尋失敗: " + err);
+  const result = crmApiRequest("get", { query: { company_name: name } });
+  if (result.status !== "success" || !result.data) return null;
+  if (Array.isArray(result.data)) {
+    return result.data.length > 0 ? result.data[0].id : null;
   }
-  return null;
-}
-
-// 用統一編號搜尋 CRM，避免「新客戶」其實已經存在而建出重複資料
-// 用同一個清單搜尋框（search[value]）查，跟用名稱搜尋是同一支 API，只是查詢字串換成統編
-function findClientIdByTaxId(taxId) {
-  if (!taxId || taxId === DEFAULT_TAX_ID) return null; // 暫代統編大家都一樣，查了也沒意義
-  return findClientIdByName(taxId);
+  return result.data.id || null;
 }
 
 // ============================================================
-// CRM 同步（模擬表單送出）
+// CRM 同步（REST API：新增用 POST，更新用 PUT）
 // ============================================================
-// 中文狀態顯示文字 → CRM 實際要送的代碼（已用 testStatusOptions() 核對過）
+// 中文狀態顯示文字 → CRM API 實際要送的代碼（對照 CRMAPI使用指南.pdf 附錄 7.3）
 const STATUS_CODE_MAP = {
   "名單公庫": "lp",
   "開發中": "dev",
@@ -606,137 +423,52 @@ function crmStatusToCode(displayStatus) {
   return STATUS_CODE_MAP[displayStatus] || displayStatus;
 }
 
-// 診斷用：從新增客戶頁面的 HTML 裡，把「狀態」下拉選單真正的 value 對照表撈出來
-function testStatusOptions() {
-  const cookie = getCRMCookie();
-  const resp = UrlFetchApp.fetch(CRM_ADD_PAGE, {
-    headers: { Cookie: cookie, "X-Requested-With": "XMLHttpRequest" },
-    muteHttpExceptions: true,
-  });
-  const html = resp.getContentText();
-
-  // 抓 <select ... name="status" ...> ... </select> 這一段
-  const selectMatch = html.match(/<select[^>]*name="status"[^>]*>([\s\S]*?)<\/select>/);
-  if (!selectMatch) {
-    Logger.log("找不到 status 下拉選單。內容長度：" + html.length);
-    Logger.log("內容片段：" + html.replace(/\s+/g, " ").slice(0, 500));
-    return;
-  }
-  const optionsHtml = selectMatch[1];
-  const optionRegex = /<option[^>]*value="([^"]*)"[^>]*>([^<]*)<\/option>/g;
-  let m;
-  const results = [];
-  while ((m = optionRegex.exec(optionsHtml)) !== null) {
-    results.push(`${m[2].trim()} = ${m[1]}`);
-  }
-  Logger.log("狀態對照表：\n" + results.join("\n"));
-}
-
-// 手動組出 multipart/form-data（GAS 的 payload 給物件時預設是 url-encoded，
-// 但這個 CRM 表單原本用的是 multipart，格式不對會導致伺服器認不出這是合法送出）
-function buildMultipartPayload(fields) {
-  const boundary = "----WorklogBoundary" + Utilities.getUuid().replace(/-/g, "");
-  let body = "";
-  for (const key in fields) {
-    body += "--" + boundary + "\r\n";
-    body += `Content-Disposition: form-data; name="${key}"\r\n\r\n`;
-    body += (fields[key] === undefined || fields[key] === null ? "" : fields[key]) + "\r\n";
-  }
-  body += "--" + boundary + "--\r\n";
-  return { boundary: boundary, body: body };
-}
-
+// info: { clientName, status, taxId, note, isNewClient, crmId }
 function syncToCRM(info) {
-  const pageUrl = info.isNewClient
-    ? CRM_ADD_PAGE
-    : `https://crm.makarma.com.tw/client/spanel/index.php?mode=edit&id=${info.crmId}`;
-
-  let cookie, html, statusCode, cmarkMatch;
-  const maxAttempts = 6;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    cookie = loginToCRM(); // 每次重試都整個重新登入，不沿用舊的
-
-    const pageResp = UrlFetchApp.fetch(pageUrl, {
-      headers: {
-        Cookie: cookie,
-        "X-Requested-With": "XMLHttpRequest",
-        "User-Agent": CRM_USER_AGENT,
-      },
-      muteHttpExceptions: true,
-    });
-    statusCode = pageResp.getResponseCode();
-    html = pageResp.getContentText();
-    cmarkMatch = html.match(/name="cmark"\s+id="cmark"\s+value="([a-f0-9]+)"/);
-    if (cmarkMatch) break;
-    if (attempt < maxAttempts) Utilities.sleep(3000);
-  }
-
-  if (!cmarkMatch) {
-    const snippet = html.replace(/\s+/g, " ").slice(0, 200);
-    return {
-      synced: false,
-      message: `抓不到 cmark，重試${maxAttempts}次仍失敗（HTTP ${statusCode}，網址：${pageUrl}）。回應片段：${snippet}`,
-    };
-  }
-  const cmark = cmarkMatch[1];
-
-  // Step 2: 組表單送出，用同一組 cookie，欄位對齊真實瀏覽器送出的內容
-  const payload = {
-    company_name: info.clientName,
-    status: info.status,
-    sales_staff_id: "9", // TODO: 如果之後用不同帳號執行，這裡要改成對應的業務編號
-    industry: "",
-    data_source: "",
-    type: "",
-    contact_name_1: "",
-    contact_mobile_1: "",
-    phone_1: "",
-    referrer: "",
-    fax: "",
-    tax_id_number: info.taxId,
-    contact_email_1: "",
-    address: "",
-    web_site: "",
-    work_log_content: info.note,
-    appointment_type: "",
-    appointment_date: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"),
-    mode: info.isNewClient ? "insert" : "update",
-    id: info.isNewClient ? "0" : info.crmId,
-    cmark: cmark,
-    _dummy: Utilities.newBlob("", "application/octet-stream", ""),
-  };
-
-  const resp = UrlFetchApp.fetch(CRM_BASE, {
-    method: "post",
-    headers: {
-      Cookie: cookie,
-      "X-Requested-With": "XMLHttpRequest",
-      "User-Agent": CRM_USER_AGENT,
-      "Referer": pageUrl,
-      "Origin": "https://crm.makarma.com.tw",
-      "Accept": "application/json, text/javascript, */*; q=0.01",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "same-origin",
-    },
-    payload: payload,
-    muteHttpExceptions: true,
-  });
-
-  let result;
   try {
-    result = JSON.parse(resp.getContentText());
-  } catch (err) {
-    return {
-      synced: false,
-      message: `CRM 回應無法解析（HTTP ${resp.getResponseCode()}）: ` + resp.getContentText().replace(/\s+/g, " ").slice(0, 200),
-    };
-  }
+    if (info.isNewClient) {
+      const body = {
+        company_name: info.clientName,
+        tax_id_number: info.taxId,
+        status: info.status,
+      };
+      if (info.note) body.content_plain = info.note;
 
-  if (result.status === "success") {
-    return { synced: true, message: result.title || "同步成功", crmId: result.id };
+      const result = crmApiRequest("post", { body: body });
+      if (result.status === "success") {
+        return { synced: true, message: "新增成功", crmId: result.data.id };
+      }
+
+      if (result.error_code === "duplicate_tax_id") {
+        // 統編已存在：改成用公司名稱查出既有客戶編號，改走更新流程，避免建出重複客戶
+        const existingId = findClientIdByName(info.clientName);
+        if (existingId) {
+          const updateResult = syncToCRM(Object.assign({}, info, { isNewClient: false, crmId: existingId }));
+          updateResult.message =
+            `統編已存在於 CRM（編號 ${existingId}），已自動改成更新該筆客戶；` + (updateResult.message || "");
+          return updateResult;
+        }
+        return {
+          synced: false,
+          message: `統編 ${info.taxId} 已存在於 CRM，但依公司名稱「${info.clientName}」查不到對應客戶（名稱可能不完全一致），請手動確認後再試一次`,
+        };
+      }
+
+      return { synced: false, message: (result.message || "新增失敗") + (result.error_code ? `（${result.error_code}）` : "") };
+    }
+
+    const body = { id: info.crmId, status: info.status };
+    if (info.note) body.content_plain = info.note;
+    if (info.taxId && info.taxId !== DEFAULT_TAX_ID) body.tax_id_number = info.taxId;
+
+    const result = crmApiRequest("put", { body: body });
+    if (result.status === "success") {
+      return { synced: true, message: "更新成功", crmId: result.data.id };
+    }
+    return { synced: false, message: (result.message || "更新失敗") + (result.error_code ? `（${result.error_code}）` : "") };
+  } catch (err) {
+    return { synced: false, message: "同步失敗：" + err };
   }
-  return { synced: false, message: result.title || "CRM 回傳失敗" };
 }
 
 // ============================================================
@@ -856,6 +588,28 @@ function verifyLineIdToken(idToken) {
     throw new Error("LINE 登入驗證失敗：" + (result.error_description || resp.getContentText()));
   }
   return result.sub; // 這組是 LINE 內部使用者 ID，同一個人在同一個 Channel 下永遠固定不變
+}
+
+// 純粹比對「名片名單」授權名單，不驗證 idToken——給已經知道 LINE userId 的呼叫方用
+// （例如 LINE Webhook 事件本身帶的 source.userId，本來就是 LINE 平台驗證過的，不需要再驗一次）
+function isAuthorizedUserId(userId) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CARD_ROSTER_SHEET);
+  if (!sheet || !userId) return false;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === userId && String(data[i][7]).toUpperCase() === "TRUE") return true;
+  }
+  return false;
+}
+
+// 給 LIFF 表單（會議、工作日誌）用：驗證 idToken 是誰、且必須是授權名單裡啟用中的人，
+// 沒通過就丟例外（doPost 的 try/catch 會接住，回傳 error 訊息給前端）
+function requireAuthorizedUser(idToken) {
+  const userId = verifyLineIdToken(idToken);
+  if (!isAuthorizedUserId(userId)) {
+    throw new Error("您尚未完成綁定審核，請先在 LINE 官方帳號的圖文選單點選「綁定」");
+  }
+  return userId;
 }
 
 function getCardForLineUser(idToken) {
@@ -1057,12 +811,326 @@ function handleLineWebhook(body) {
   }
 
   (body.events || []).forEach((event) => {
+    const userId = event.source && event.source.userId;
+    if (!userId) return;
+
     if (event.type === "message" && event.message && event.message.type === "text") {
-      replyMenu(event.replyToken, token);
+      const text = event.message.text.trim();
+
+      if (text === "綁定" || text.toLowerCase() === "bind") {
+        handleBindRequest(userId, event.replyToken, token);
+        return;
+      }
+
+      if (!isAuthorizedUserId(userId)) {
+        replyLineText(event.replyToken, token, "您好，這是內部帳號，請先點選圖文選單的「綁定」完成審核才能使用🙏");
+        return;
+      }
+
+      if (text === "選單" || text.toLowerCase() === "menu") {
+        replyMenu(event.replyToken, token);
+      } else {
+        const replyMsg = generateReplyText(text);
+        replyLineText(event.replyToken, token, replyMsg);
+      }
     }
   });
 
   return ContentService.createTextOutput("");
+}
+
+// ============================================================
+// 綁定申請：未在「名片名單」裡的人第一次點「綁定」，自動加一列（啟用=FALSE）
+// 並用 Telegram 通知管理員手動審核；已經在名單裡的人依現在的啟用狀態回覆對應訊息。
+// 真正的核准動作是管理員把 Sheet 上「啟用」欄改成 TRUE——那一刻由 onSheetEditInstallable
+// 這個安裝式觸發器接手，自動切換圖文選單並推播通知使用者。
+// ============================================================
+function handleBindRequest(userId, replyToken, token) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CARD_ROSTER_SHEET);
+  if (!sheet) {
+    replyLineText(replyToken, token, "系統尚未設定完成，請聯絡管理員");
+    return;
+  }
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === userId) {
+      const enabled = String(data[i][7]).toUpperCase() === "TRUE";
+      replyLineText(
+        replyToken,
+        token,
+        enabled ? "您已經綁定過了，可以直接使用選單功能囉🙏" : "您的綁定申請正在審核中，請耐心等候，通過後會通知您🙏"
+      );
+      return;
+    }
+  }
+
+  const displayName = getLineDisplayName(userId, token);
+  sheet.appendRow([userId, displayName, "", "", "", "", "", "FALSE"]);
+
+  replyLineText(replyToken, token, "已收到您的綁定申請，請等待管理員審核，通過後會自動通知您🙏");
+  notifyAdminOfBindRequest(displayName, userId);
+}
+
+function getLineDisplayName(userId, token) {
+  try {
+    const resp = UrlFetchApp.fetch("https://api.line.me/v2/bot/profile/" + userId, {
+      headers: { Authorization: "Bearer " + token },
+      muteHttpExceptions: true,
+    });
+    const result = JSON.parse(resp.getContentText());
+    return result.displayName || "";
+  } catch (err) {
+    return "";
+  }
+}
+
+function notifyAdminOfBindRequest(displayName, userId) {
+  sendTelegramMessage(
+    "🔔 新的綁定申請\n姓名：" + (displayName || "（無法取得）") + "\nLINE ID：" + userId +
+    "\n\n請到「" + CARD_ROSTER_SHEET + "」分頁把這個人那一列的「啟用」欄改成 TRUE 來核准"
+  );
+}
+
+// ============================================================
+// 核准後的自動處理：安裝式 onEdit 觸發器（需在編輯器手動執行 setupBindApprovalTrigger 一次授權）
+// 偵測「名片名單」分頁的「啟用」欄被改成 TRUE，自動切換該使用者的圖文選單、推播通知
+// ============================================================
+function onSheetEditInstallable(e) {
+  try {
+    const sheet = e.range.getSheet();
+    if (sheet.getName() !== CARD_ROSTER_SHEET) return;
+    if (e.range.getColumn() !== 8 || e.range.getRow() === 1) return; // 第8欄＝啟用，跳過表頭
+
+    const newValue = String(e.value || "").toUpperCase();
+    if (newValue !== "TRUE") return;
+
+    const userId = sheet.getRange(e.range.getRow(), 1).getValue();
+    if (!userId) return;
+
+    switchUserToRichMenu(userId, "RICH_MENU_ID_BOUND");
+    notifyUserApproved(userId);
+  } catch (err) {
+    Logger.log("[onSheetEditInstallable ERROR] " + err);
+  }
+}
+
+function switchUserToRichMenu(userId, propertyName) {
+  const props = PropertiesService.getScriptProperties();
+  const richMenuId = props.getProperty(propertyName);
+  const token = props.getProperty("LINE_CHANNEL_ACCESS_TOKEN");
+  if (!richMenuId || !token) {
+    Logger.log("尚未設定 " + propertyName + " 或 LINE_CHANNEL_ACCESS_TOKEN");
+    return;
+  }
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/user/" + userId + "/richmenu/" + richMenuId, {
+    method: "post",
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
+  });
+}
+
+function notifyUserApproved(userId) {
+  const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/message/push", {
+    method: "post",
+    contentType: "application/json",
+    headers: { Authorization: "Bearer " + token },
+    payload: JSON.stringify({
+      to: userId,
+      messages: [{ type: "text", text: "🎉 您的綁定申請已通過！選單已切換，可以開始使用囉。" }],
+    }),
+    muteHttpExceptions: true,
+  });
+}
+
+// 在編輯器裡手動執行一次即可（會要求授權），之後管理員在 Sheet 上核准就會自動生效
+function setupBindApprovalTrigger() {
+  ScriptApp.getProjectTriggers().forEach((t) => {
+    if (t.getHandlerFunction() === "onSheetEditInstallable") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("onSheetEditInstallable")
+    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+    .onEdit()
+    .create();
+  Logger.log("綁定核准觸發器已設定完成");
+}
+
+function replyLineText(replyToken, token, text) {
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/message/reply", {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + token,
+    },
+    payload: JSON.stringify({
+      replyToken: replyToken,
+      messages: [{ type: "text", text: text }],
+    }),
+    muteHttpExceptions: true,
+  });
+}
+
+// ============================================================
+// AI 回覆 / QA 比對（問答範本分頁：intent, template, keywords）
+// keywords 有填的列，命中就直接回 template，不呼叫 AI；沒命中才進 AI 分類流程
+// ============================================================
+function loadTemplatesData() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(QA_SHEET);
+  if (!sheet) return { templates: {}, qaEntries: [] };
+
+  const data = sheet.getDataRange().getValues();
+  const header = data[0];
+  const intentCol = header.indexOf("intent");
+  const templateCol = header.indexOf("template");
+  const keywordsCol = header.indexOf("keywords");
+
+  const templates = {};
+  const qaEntries = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const intent = String(row[intentCol] || "").trim();
+    const template = String(row[templateCol] || "").trim();
+    if (!intent || !template) continue;
+
+    templates[intent] = template;
+
+    const keywordsRaw = keywordsCol !== -1 ? String(row[keywordsCol] || "").trim() : "";
+    if (keywordsRaw) {
+      const keywords = keywordsRaw.split(",").map((k) => k.trim()).filter(Boolean);
+      if (keywords.length) qaEntries.push({ keywords: keywords, answer: template });
+    }
+  }
+
+  return { templates: templates, qaEntries: qaEntries };
+}
+
+function matchQa(message, qaEntries) {
+  for (const entry of qaEntries) {
+    if (entry.keywords.some((kw) => message.indexOf(kw) !== -1)) {
+      return entry.answer;
+    }
+  }
+  return null;
+}
+
+// effort: "low"（預設，快速分類/簡短回覆用）或 "medium"/"high"（複雜生成可拉高）
+// 注意：Claude 目前預設會用 adaptive thinking，這種情況下不能帶 temperature（會 400），
+// 所以這裡完全不送 temperature，改用 effort 控制運算深度。
+function callClaude(systemPrompt, userPrompt, maxTokens, effort) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("尚未設定 ANTHROPIC_API_KEY");
+
+  const payload = {
+    model: "claude-opus-5",
+    max_tokens: maxTokens || 1024,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+    output_config: { effort: effort || "low" },
+  };
+
+  const resp = UrlFetchApp.fetch("https://api.anthropic.com/v1/messages", {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  });
+
+  const result = JSON.parse(resp.getContentText());
+  if (!result.content || !result.content.length) {
+    throw new Error("Claude 回應異常（HTTP " + resp.getResponseCode() + "）：" + resp.getContentText().slice(0, 300));
+  }
+  const textBlock = result.content.filter((b) => b.type === "text")[0];
+  return textBlock ? textBlock.text.trim() : "";
+}
+
+const CLASSIFY_PROMPT = `你是訊息分類助理。只能回傳 JSON，格式：{"intent": "<意圖>", "entities": {}}
+
+意圖清單：
+- payment_personal  → 匯款個人帳號（不需發票）。關鍵字：個人帳號
+- payment_company   → 匯款公司帳號（需發票）。關鍵字：公司帳號、發票
+- payment_screenshot → 請截圖。關鍵字：截圖、刷卡、信用卡、匯款完成
+- meeting_reminder  → 碰面/Demo 前提醒。含日期時間地點
+- meeting_thanks    → 碰面/Demo 後感謝。含人名
+- unknown
+
+entities：
+payment_*: {"amount": 數字}
+payment_screenshot: {"payment_type": "匯款"或"刷卡"}
+meeting_reminder: {"person_name":..,"date":..,"weekday":..,"time":..,"address":..,"phone":..,"topics":..}
+meeting_thanks: {"person_names":..,"follow_up":..}`;
+
+function classifyIntent(message) {
+  const content = callClaude(CLASSIFY_PROMPT, message, 300, "low");
+  const match = content.match(/\{[\s\S]*\}/);
+  if (!match) return { intent: "unknown", entities: {} };
+  try {
+    return JSON.parse(match[0]);
+  } catch (err) {
+    return { intent: "unknown", entities: {} };
+  }
+}
+
+function fillTemplate(template, replacements) {
+  let result = template;
+  Object.keys(replacements).forEach((key) => {
+    result = result.split("{" + key + "}").join(replacements[key]);
+  });
+  return result;
+}
+
+function generateMeetingMessage(template, entities, userInput) {
+  const systemPrompt =
+    "你是業務助理，撰寫會面相關訊息。參考此風格：\n---\n" + template + "\n---\n只回傳訊息本文。";
+  const lines = Object.keys(entities)
+    .filter((k) => entities[k])
+    .map((k) => k + ": " + entities[k])
+    .join("\n");
+  return callClaude(systemPrompt, "輸入：" + userInput + "\n資訊：\n" + lines, 800, "low");
+}
+
+const FALLBACK_SYSTEM_PROMPT =
+  "你是瑪卡鎷網路行銷（MaKarma）LINE 官方帳號的客服助理。\n" +
+  "使用者這則訊息無法對應到既有的範本。請用繁體中文簡短回覆（不超過3句話），語氣親切自然。\n" +
+  "如果問題涉及報價、合約細節、專案進度等你不清楚的具體資訊，請直接引導對方稍等由專人回覆，不要編造答案。";
+
+function fallbackReply(message) {
+  return callClaude(FALLBACK_SYSTEM_PROMPT, message, 300, "low");
+}
+
+function generateReplyText(message) {
+  try {
+    const loaded = loadTemplatesData();
+    const templates = loaded.templates;
+
+    const qaAnswer = matchQa(message, loaded.qaEntries);
+    if (qaAnswer) return qaAnswer;
+
+    const result = classifyIntent(message);
+    const intent = result.intent || "unknown";
+    const entities = result.entities || {};
+    const template = templates[intent] || "";
+
+    if (intent === "payment_personal" || intent === "payment_company") {
+      const amount = Number(entities.amount) || 0;
+      return fillTemplate(template, { amount: amount.toLocaleString("en-US") });
+    }
+    if (intent === "payment_screenshot") {
+      return fillTemplate(template, { payment_type: entities.payment_type || "匯款" });
+    }
+    if (intent === "meeting_reminder" || intent === "meeting_thanks") {
+      return generateMeetingMessage(template, entities, message);
+    }
+    return fallbackReply(message);
+  } catch (err) {
+    Logger.log("[generateReplyText ERROR] " + err);
+    return "處理訊息時發生錯誤，請稍後再試 🙏";
+  }
 }
 
 function replyMenu(replyToken, token) {
@@ -1107,6 +1175,13 @@ function replyMenu(replyToken, token) {
             height: "sm",
             color: "#FFA000",
             action: { type: "uri", label: "會議邀請", uri: liffUrl(LIFF_ID_MEETING) },
+          },
+          {
+            type: "button",
+            style: "primary",
+            height: "sm",
+            color: "#1976D2",
+            action: { type: "uri", label: "業務戰情室", uri: SALES_WAR_ROOM_URL },
           },
         ],
       },

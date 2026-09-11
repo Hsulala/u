@@ -99,7 +99,7 @@
             try {
                 const res = await fetch(gasWebAppUrl, {
                     method: "POST", mode: "cors", headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify({ action: "meetingSearch", keyword: keyword })
+                    body: JSON.stringify({ action: "meetingSearch", keyword: keyword, idToken: liff.getIDToken() })
                 });
                 const result = await res.json();
                 resultsBox.innerHTML = "";
@@ -218,7 +218,7 @@
 
                 if (!title || !date || !startTime) throw new Error("請填寫主旨、日期與時間！");
 
-                const payload = { action: currentMode === "update" ? "meetingUpdate" : "meetingCreate", title, date, startTime, endTime, location };
+                const payload = { action: currentMode === "update" ? "meetingUpdate" : "meetingCreate", title, date, startTime, endTime, location, idToken: liff.getIDToken() };
                 if (currentMode === "update") payload.eventId = currentEventId;
 
                 const response = await fetch(gasWebAppUrl, {
