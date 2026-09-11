@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MaKarma 成效展示</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root { --primary-color: #F39800; --background-color: #f9f9f9; --text-color: #333; --card-bg: #ffffff; --border-color: #e0e0e0; --green: #28a745; }
   * { box-sizing: border-box; }
@@ -35,6 +36,7 @@
   .stat-card .label { color: #888; font-size: 0.85em; margin-top: 4px; }
   section { margin-bottom: 28px; }
   h2 { font-size: 1.1em; border-left: 4px solid var(--primary-color); padding-left: 10px; margin-bottom: 12px; }
+  .chart-card { background: var(--card-bg); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
   .compare-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
   .compare-col { background: var(--card-bg); border-radius: 12px; padding: 16px; text-align: center; }
   .compare-col .tag { font-size: 0.8em; color: #999; }
@@ -97,6 +99,11 @@ function jsonp(url) {
 function escapeHtml(s) {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// 數字加千分位逗號，例如 970494 -> 970,494
+function fmt(n) {
+  return Number(n || 0).toLocaleString('en-US');
 }
 
 var app = document.getElementById("app");
@@ -212,21 +219,26 @@ function renderReport(data) {
   html += '</div>';
 
   html += '<section><h2>累計至今總量</h2><div class="stat-grid">';
-  html += '<div class="stat-card"><div class="value">' + site.keywordCount + '</div><div class="label">收錄關鍵字數</div></div>';
-  html += '<div class="stat-card"><div class="value">' + site.clicks + '</div><div class="label">總點擊</div></div>';
-  html += '<div class="stat-card"><div class="value">' + site.impressions + '</div><div class="label">總曝光</div></div>';
+  html += '<div class="stat-card"><div class="value">' + fmt(site.keywordCount) + '</div><div class="label">收錄關鍵字數</div></div>';
+  html += '<div class="stat-card"><div class="value">' + fmt(site.clicks) + '</div><div class="label">總點擊</div></div>';
+  html += '<div class="stat-card"><div class="value">' + fmt(site.impressions) + '</div><div class="label">總曝光</div></div>';
   html += '<div class="stat-card"><div class="value">' + site.ctrText + '</div><div class="label">平均CTR</div></div>';
   html += '<div class="stat-card" style="grid-column: 1 / -1;"><div class="value">' + site.avgPositionText + '</div><div class="label">平均排名</div></div>';
   html += '</div></section>';
+
+  var trend = data.trend || [];
+  if (trend.length >= 2) {
+    html += '<section><h2>曝光與點擊趨勢</h2><div class="chart-card"><canvas id="trendChart" height="220"></canvas></div></section>';
+  }
 
   if (data.showComparison && data.comparison) {
     var c = data.comparison;
     html += '<section><h2>合作滿一年，前後對比</h2><div class="compare-grid">';
     html += '<div class="compare-col"><div class="tag">' + escapeHtml(c.beforeDate) + '</div>';
-    html += '<div class="num">' + c.beforeClicks + ' 點擊</div><div class="num">' + c.beforeImpressions + ' 曝光</div><div class="num">' + c.beforeKeywordCount + ' 關鍵字</div></div>';
+    html += '<div class="num">' + fmt(c.beforeClicks) + ' 點擊</div><div class="num">' + fmt(c.beforeImpressions) + ' 曝光</div><div class="num">' + fmt(c.beforeKeywordCount) + ' 關鍵字</div></div>';
     html += '<div class="compare-arrow">→</div>';
     html += '<div class="compare-col after"><div class="tag">現在</div>';
-    html += '<div class="num">' + c.afterClicks + ' 點擊</div><div class="num">' + c.afterImpressions + ' 曝光</div><div class="num">' + c.afterKeywordCount + ' 關鍵字</div></div>';
+    html += '<div class="num">' + fmt(c.afterClicks) + ' 點擊</div><div class="num">' + fmt(c.afterImpressions) + ' 曝光</div><div class="num">' + fmt(c.afterKeywordCount) + ' 關鍵字</div></div>';
     html += '</div></section>';
   }
 
@@ -234,10 +246,10 @@ function renderReport(data) {
     var comp = data.competitor;
     html += '<section><h2>與競爭對手比較</h2><div class="compare-grid">';
     html += '<div class="compare-col after"><div class="tag">我們</div>';
-    html += '<div class="num">' + comp.usClicks + ' 點擊</div><div class="num">' + comp.usImpressions + ' 曝光</div><div class="num">排名 ' + comp.usAvgPositionText + '</div></div>';
+    html += '<div class="num">' + fmt(comp.usClicks) + ' 點擊</div><div class="num">' + fmt(comp.usImpressions) + ' 曝光</div><div class="num">排名 ' + comp.usAvgPositionText + '</div></div>';
     html += '<div class="compare-arrow">VS</div>';
     html += '<div class="compare-col"><div class="tag">' + escapeHtml(comp.name || '競爭對手') + '</div>';
-    html += '<div class="num">' + comp.clicks + ' 點擊</div><div class="num">' + comp.impressions + ' 曝光</div><div class="num">排名 ' + comp.avgPositionText + '</div></div>';
+    html += '<div class="num">' + fmt(comp.clicks) + ' 點擊</div><div class="num">' + fmt(comp.impressions) + ' 曝光</div><div class="num">排名 ' + comp.avgPositionText + '</div></div>';
     html += '</div></section>';
   }
 
@@ -247,11 +259,11 @@ function renderReport(data) {
       html += '<div class="article-card">';
       html += '<div class="title">' + escapeHtml(a.title) + '</div>';
       if (a.publishDateText) html += '<div class="pub">發布日 ' + escapeHtml(a.publishDateText) + '</div>';
-      html += '<div class="article-stats"><div>點擊 <b>' + a.clicks + '</b></div><div>曝光 <b>' + a.impressions + '</b></div><div>排名 <b>' + a.avgPosition.toFixed(1) + '</b></div></div>';
+      html += '<div class="article-stats"><div>點擊 <b>' + fmt(a.clicks) + '</b></div><div>曝光 <b>' + fmt(a.impressions) + '</b></div><div>排名 <b>' + a.avgPosition.toFixed(1) + '</b></div></div>';
       if (a.topKeywords && a.topKeywords.length > 0) {
         html += '<div class="keywords"><div class="heading">帶量關鍵字</div>';
         a.topKeywords.forEach(function (kw) {
-          html += '<div class="keyword-row"><span class="query">' + escapeHtml(kw.query) + '</span><span class="clicks">' + kw.clicks + ' 點擊</span></div>';
+          html += '<div class="keyword-row"><span class="query">' + escapeHtml(kw.query) + '</span><span class="clicks">' + fmt(kw.clicks) + ' 點擊</span></div>';
         });
         html += '</div>';
       }
@@ -267,6 +279,51 @@ function renderReport(data) {
   html += '<footer>資料每日自動同步 Google Search Console，數字為累計至今總量</footer>';
 
   app.innerHTML = html;
+
+  if (trend.length >= 2) renderTrendChart(trend);
+}
+
+// 用 Chart.js 畫曝光(左軸)+點擊(右軸)雙線圖，月份當 X 軸。
+// 兩個數字量級差很多（曝光常常是點擊的幾十倍），共用一個座標軸會讓點擊線幾乎貼底看不出變化。
+function renderTrendChart(trend) {
+  var canvas = document.getElementById('trendChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: trend.map(function (t) { return t.month; }),
+      datasets: [
+        {
+          label: '曝光',
+          data: trend.map(function (t) { return t.impressions; }),
+          borderColor: '#F39800',
+          backgroundColor: 'rgba(243,152,0,0.12)',
+          fill: true,
+          tension: 0.3,
+          yAxisID: 'y',
+        },
+        {
+          label: '點擊',
+          data: trend.map(function (t) { return t.clicks; }),
+          borderColor: '#28a745',
+          backgroundColor: 'rgba(40,167,69,0.12)',
+          fill: true,
+          tension: 0.3,
+          yAxisID: 'y1',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        y: { position: 'left', title: { display: true, text: '曝光' }, ticks: { callback: fmt } },
+        y1: { position: 'right', title: { display: true, text: '點擊' }, grid: { drawOnChartArea: false }, ticks: { callback: fmt } },
+      },
+    },
+  });
 }
 
 // ---------- 路由 ----------
