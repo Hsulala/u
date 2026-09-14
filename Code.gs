@@ -34,7 +34,8 @@ const LIFF_ID_CARD = "2007968447-L1XqQgMW";
 const LIFF_ID_MEETING = "2007968447-PQ3LQjeO";
 
 // 業務戰情室（同事另外架設的 Cloudflare 應用，管客戶/Pipeline/戰報），外部網站直接開連結即可，不需要 LIFF ID
-const SALES_WAR_ROOM_URL = "https://sales-war-room.gorgeousamy2022.chatgpt.site";
+// 注意：正式站是 workers.dev 這個網址；chatgpt.site 是已經停用、跟正式資料庫脫鉤的舊網址，2026-09-14 發現團隊一直被導去舊站才改回來
+const SALES_WAR_ROOM_URL = "https://makarma-sales-war-room.gorgeousamy2022.workers.dev";
 
 const DEFAULT_TAX_ID = "96756074"; // 沒有真實統編時的暫代值（CRM API 允許這組統編重複）
 
