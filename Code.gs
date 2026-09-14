@@ -686,71 +686,6 @@ function resyncFailedCRMEntries() {
   SpreadsheetApp.getActiveSpreadsheet().toast(msg, "工作日誌", 8);
 }
 
-// ============================================================
-// 夜間彙整 → Telegram（用「觸發器」設定每晚固定時間執行 dailySummary）
-// ============================================================
-function dailySummary() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const logSheet = ss.getSheetByName(SHEET_LOG);
-  const dealSheet = ss.getSheetByName(SHEET_DEAL);
-
-  const today = new Date();
-  const todayStr = Utilities.formatDate(today, Session.getScriptTimeZone(), "yyyy-MM-dd");
-
-  const logData = logSheet.getDataRange().getValues();
-  const counts = { 開發: new Set(), 有效: new Set(), 加LINE: new Set(), 追蹤: new Set(), DEMO: new Set() };
-  const noteLines = [];
-
-  for (let i = 1; i < logData.length; i++) {
-    const row = logData[i];
-    const ts = row[0];
-    if (!(ts instanceof Date)) continue;
-    const dateStr = Utilities.formatDate(ts, Session.getScriptTimeZone(), "yyyy-MM-dd");
-    if (dateStr !== todayStr) continue;
-
-    const clientName = row[1];
-    const types = String(row[2] || "").split(",").map((s) => s.trim()).filter(Boolean);
-    types.forEach((t) => {
-      if (counts[t]) counts[t].add(clientName); // 當天同客戶只算一次
-    });
-
-    const note = row[4];
-    if (note) noteLines.push(`${clientName}＿${note}`);
-  }
-
-  // 案件管道表：依階段分組列出 客戶+金額
-  const dealData = dealSheet.getDataRange().getValues();
-  const groups = { 斡旋中: [], 預計成交: [], 已成交: [] };
-  let totalRevenue = 0;
-
-  for (let i = 1; i < dealData.length; i++) {
-    const [name, stage, amount] = dealData[i];
-    if (!name || !groups[stage]) continue;
-    const amt = Number(amount) || 0;
-    groups[stage].push(amt ? `${name} ${amt}` : `${name}`);
-    if (stage === "已成交") totalRevenue += amt;
-  }
-
-  const dateLabel = Utilities.formatDate(today, Session.getScriptTimeZone(), "M/d");
-  let msg = `${dateLabel} Uly  辦公室日誌\n\n`;
-  msg += `開發數：${counts["開發"].size}\n`;
-  msg += `有效數：${counts["有效"].size}\n`;
-  msg += `加LINE：${counts["加LINE"].size}\n`;
-  msg += `追蹤數：${counts["追蹤"].size}\n`;
-  msg += `DEMO：${counts["DEMO"].size}\n\n`;
-
-  noteLines.forEach((line, idx) => {
-    msg += `${idx + 1}）${line}\n`;
-  });
-
-  msg += `\n\n目前成交：${groups["已成交"].join("、") || "無"}\n`;
-  msg += `預計成交：${groups["預計成交"].join("、") || "無"}\n`;
-  msg += `斡旋中：${groups["斡旋中"].join("、") || "無"}\n\n`;
-  msg += `目前業績：$${totalRevenue}`;
-
-  sendTelegramMessage(msg);
-}
-
 function sendTelegramMessage(text) {
   const props = PropertiesService.getScriptProperties();
   const token = props.getProperty("TELEGRAM_BOT_TOKEN");
@@ -767,14 +702,6 @@ function sendTelegramMessage(text) {
   });
 }
 
-// 執行一次即可建立每晚 21:00 自動觸發
-function setupNightlyTrigger() {
-  ScriptApp.getProjectTriggers().forEach((t) => {
-    if (t.getHandlerFunction() === "dailySummary") ScriptApp.deleteTrigger(t);
-  });
-  ScriptApp.newTrigger("dailySummary").timeBased().everyDays(1).atHour(21).create();
-}
-
 // ============================================================
 // Sheet 側邊欄
 // ============================================================
@@ -786,7 +713,6 @@ function onOpen() {
     .addItem("重建 Sheet 結構", "setupSheets")
     .addItem("建立會議記錄表", "setupMeetingSheet")
     .addItem("建立名片名單表", "setupCardRosterSheet")
-    .addItem("設定每晚彙整觸發器", "setupNightlyTrigger")
     .addToUi();
 }
 
