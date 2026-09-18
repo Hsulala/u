@@ -55,6 +55,27 @@
   .keyword-row .clicks { color: var(--primary-color); font-weight: bold; white-space: nowrap; margin-left: 10px; }
   .highlight { background: #fff7ec; border-left: 4px solid var(--primary-color); border-radius: 12px; padding: 16px 18px; white-space: pre-wrap; line-height: 1.6; }
 
+  /* 客戶故事卡 */
+  .story-card { background: var(--card-bg); border-radius: 14px; padding: 22px 20px; margin-bottom: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); border-top: 5px solid var(--story-accent, var(--primary-color)); }
+  .story-kind { font-size: 0.75em; color: var(--story-accent, var(--primary-color)); font-weight: bold; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .story-headline { font-size: 1.3em; font-weight: 800; line-height: 1.4; margin-bottom: 16px; }
+  .hero-compare { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .hero-compare .box { text-align: center; }
+  .hero-compare .num { font-size: 1.8em; font-weight: 800; color: #999; }
+  .hero-compare .box.after .num { color: var(--story-accent, var(--green)); }
+  .hero-compare .box-label { font-size: 0.75em; color: #999; margin-top: 4px; }
+  .hero-compare .arrow { font-size: 1.4em; color: var(--story-accent, var(--primary-color)); }
+  .hero-compare .growth { display: block; font-size: 0.85em; font-weight: bold; color: var(--story-accent, var(--green)); margin-top: 4px; }
+  .story-business { list-style: none; padding: 0; margin: 0 0 16px; }
+  .story-business li { padding: 6px 0 6px 22px; position: relative; font-size: 0.92em; line-height: 1.5; }
+  .story-business li::before { content: "✓"; position: absolute; left: 0; color: var(--story-accent, var(--primary-color)); font-weight: bold; }
+  .story-quote { background: #f9f9f9; border-left: 4px solid var(--story-accent, var(--primary-color)); border-radius: 10px; padding: 14px 16px; font-size: 0.9em; line-height: 1.6; color: #555; margin-bottom: 16px; }
+  .story-milestones { border-top: 1px solid var(--border-color); padding-top: 12px; }
+  .story-milestones .heading { font-size: 0.75em; color: #aaa; margin-bottom: 8px; }
+  .milestone-row { display: flex; gap: 10px; font-size: 0.85em; padding: 4px 0; }
+  .milestone-row .date { color: #999; white-space: nowrap; }
+  .milestone-row .text { color: #444; }
+
   footer { text-align: center; color: #bbb; font-size: 0.75em; margin-top: 30px; }
   .loading, .error { text-align: center; color: #999; padding: 60px 0; }
 </style>
@@ -219,6 +240,50 @@ function renderReportPage(clientId) {
   });
 }
 
+// 客戶故事卡：業績成長、客戶回饋這類 GSC 抓不到的東西，資料來自業務同事另外整理的
+// 案例集，每天自動同步過來，不是我們自己編的
+function renderStorySection(story) {
+  var accentStyle = story.brandAccent ? ' style="--story-accent:' + escapeHtml(story.brandAccent) + ';"' : '';
+  var html = '<div class="story-card"' + accentStyle + '>';
+
+  if (story.kind) html += '<div class="story-kind">' + escapeHtml(story.kind) + '</div>';
+  if (story.headline) html += '<div class="story-headline">' + escapeHtml(story.headline) + '</div>';
+
+  var hc = story.heroComparison;
+  if (hc) {
+    html += '<div class="hero-compare">';
+    html += '<div class="box"><div class="num">' + escapeHtml(hc.before) + '</div><div class="box-label">' + escapeHtml(hc.beforeLabel) + '</div></div>';
+    html += '<div class="arrow">→</div>';
+    html += '<div class="box after"><div class="num">' + escapeHtml(hc.after) + '</div><div class="box-label">' + escapeHtml(hc.afterLabel) + '</div>';
+    if (hc.growth) html += '<span class="growth">' + escapeHtml(hc.growth) + (hc.growthLabel ? ' ' + escapeHtml(hc.growthLabel) : '') + '</span>';
+    html += '</div>';
+    html += '</div>';
+  }
+
+  var business = story.business || [];
+  if (business.length > 0) {
+    html += '<ul class="story-business">';
+    business.forEach(function (b) { html += '<li>' + escapeHtml(b) + '</li>'; });
+    html += '</ul>';
+  }
+
+  if (story.conclusion) {
+    html += '<div class="story-quote">' + escapeHtml(story.conclusion) + '</div>';
+  }
+
+  var milestones = story.milestones || [];
+  if (milestones.length > 0) {
+    html += '<div class="story-milestones"><div class="heading">合作歷程</div>';
+    milestones.forEach(function (m) {
+      html += '<div class="milestone-row"><span class="date">' + escapeHtml(m.date) + '</span><span class="text">' + escapeHtml(m.text) + '</span></div>';
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
 function renderReport(data) {
   var client = data.client;
   var site = data.site;
@@ -230,6 +295,10 @@ function renderReport(data) {
   html += '<div class="meta"><span>' + escapeHtml(client.domain) + '</span>';
   if (data.launchDateText) html += '<span>上線日 ' + escapeHtml(data.launchDateText) + '</span>';
   html += '</div>';
+
+  if (data.showStory && data.story) {
+    html += renderStorySection(data.story);
+  }
 
   html += '<section><h2>累計至今總量</h2><div class="stat-grid">';
   html += '<div class="stat-card"><div class="value">' + fmt(site.keywordCount) + '</div><div class="label">收錄關鍵字數</div></div>';
