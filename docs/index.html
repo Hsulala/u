@@ -72,10 +72,12 @@ function jsonp(url) {
   return new Promise(function (resolve, reject) {
     var cbName = "cb_" + Date.now() + "_" + Math.floor(Math.random() * 1e6);
     var script = document.createElement("script");
+    // Apps Script 閒置一陣子後，第一次請求常會有「冷啟動」延遲（測過最久快10秒），
+    // 給寬一點的超時時間，不要動不動就判定失敗
     var timeoutId = setTimeout(function () {
       cleanup();
       reject(new Error("請求逾時"));
-    }, 20000);
+    }, 35000);
 
     function cleanup() {
       clearTimeout(timeoutId);
@@ -96,6 +98,14 @@ function jsonp(url) {
   });
 }
 
+// 失敗了先偷偷重試一次（通常是冷啟動或網路瞬斷），使用者不會注意到；
+// 兩次都失敗才真的顯示錯誤畫面
+function jsonpWithRetry(url) {
+  return jsonp(url).catch(function () {
+    return jsonp(url);
+  });
+}
+
 function escapeHtml(s) {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -109,13 +119,16 @@ function fmt(n) {
 var app = document.getElementById("app");
 
 function showError(message) {
-  app.innerHTML = '<div class="error">' + escapeHtml(message) + '</div>';
+  app.innerHTML = '<div class="error">' + escapeHtml(message) +
+    '<div style="margin-top:14px;"><button id="retryBtn" style="padding:10px 20px;border-radius:8px;border:1px solid var(--border-color);background:#fff;cursor:pointer;">重新載入</button></div></div>';
+  var btn = document.getElementById('retryBtn');
+  if (btn) btn.addEventListener('click', route);
 }
 
 // ---------- 清單頁 ----------
 
 function renderListPage() {
-  jsonp(API_BASE + "?api=list").then(function (data) {
+  jsonpWithRetry(API_BASE + "?api=list").then(function (data) {
     renderGroups(data.groups || []);
   }).catch(function (err) {
     showError("載入客戶清單失敗：" + err.message);
@@ -194,7 +207,7 @@ function renderGroups(groups) {
 // ---------- 報告頁 ----------
 
 function renderReportPage(clientId) {
-  jsonp(API_BASE + "?api=client&id=" + encodeURIComponent(clientId)).then(function (data) {
+  jsonpWithRetry(API_BASE + "?api=client&id=" + encodeURIComponent(clientId)).then(function (data) {
     if (data.status === 'error') {
       showError(data.message || '找不到這個客戶的成效資料');
       return;
