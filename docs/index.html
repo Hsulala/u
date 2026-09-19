@@ -107,6 +107,21 @@
   .milestone-row .date { color: #999; white-space: nowrap; }
   .milestone-row .text { color: #444; }
 
+  /* 時間軸卡片、章節跳轉、長文介紹、關鍵字/AI亮點 */
+  .timeline-card { background: var(--card-bg); border-radius: 14px; padding: 20px; margin: 0 0 22px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+  .timeline-card .big-num { font-size: 2.1em; font-weight: 800; color: var(--ink); }
+  .timeline-card .big-num .unit { font-size: 0.42em; font-weight: bold; color: #8b7a66; margin-left: 6px; }
+  .timeline-card .sub { color: #6b6055; font-size: 0.88em; margin-top: 8px; line-height: 1.6; }
+  .section-jump { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+  .prose { background: var(--card-bg); border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); line-height: 1.8; font-size: 0.92em; color: #444; white-space: pre-wrap; }
+  .keyword-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .keyword-chip { background: var(--card-bg); border-radius: 999px; padding: 8px 14px; font-size: 0.85em; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+  .keyword-chip b { color: var(--primary-color); margin-left: 4px; }
+  .ai-highlights { list-style: none; padding: 0; margin: 0; background: var(--card-bg); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
+  .ai-highlights li { padding: 14px 16px 14px 40px; border-bottom: 1px solid var(--border-color); font-size: 0.92em; line-height: 1.5; position: relative; }
+  .ai-highlights li:last-child { border-bottom: none; }
+  .ai-highlights li::before { content: "✨"; position: absolute; left: 14px; }
+
   footer { text-align: center; color: #bbb; font-size: 0.75em; margin-top: 30px; }
   .loading, .error { text-align: center; color: #999; padding: 60px 0; }
 </style>
@@ -373,6 +388,17 @@ function renderReport(data) {
   var client = data.client;
   var site = data.site;
   var articles = data.articles || [];
+  var trend = data.trend || [];
+  var profile = data.profile || {};
+  var topKeywords = data.topKeywords || [];
+  var timeline = data.timeline || {};
+
+  var hasBackground = data.showProfile && profile.background;
+  var hasStrategy = data.showProfile && profile.strategy;
+  var hasTrendChart = trend.length >= 2;
+  var hasKeywords = topKeywords.length > 0;
+  var hasAiHighlights = data.showProfile && profile.aiHighlights && profile.aiHighlights.length > 0;
+  var hasArticles = articles.length > 0;
 
   var html = '';
   html += '<a class="back" href="?page=browse">← 所有客戶</a>';
@@ -385,18 +411,49 @@ function renderReport(data) {
     html += renderStorySection(data.story);
   }
 
-  html += '<section><h2>累計至今總量</h2><div class="stat-grid">';
+  if (timeline.daysSinceLaunch != null) {
+    html += '<div class="timeline-card">';
+    html += '<div class="big-num">' + fmt(timeline.daysSinceLaunch) + '<span class="unit">天</span></div>';
+    html += '<div class="sub">自 ' + escapeHtml(data.launchDateText) + ' 上線以來，已經合作 ' + fmt(timeline.daysSinceLaunch) + ' 天';
+    if (timeline.latestMonth) {
+      html += '，' + escapeHtml(timeline.latestMonth.month) + ' 自然搜尋帶來 ' + fmt(timeline.latestMonth.clicks) + ' 次點擊與 ' + fmt(timeline.latestMonth.impressions) + ' 次曝光';
+    }
+    html += '。</div></div>';
+  }
+
+  var chips = [];
+  if (hasBackground) chips.push({ id: 'bg', label: '品牌背景' });
+  if (hasStrategy) chips.push({ id: 'strategy', label: '優化策略' });
+  if (hasTrendChart) chips.push({ id: 'trend', label: '成效時間軸' });
+  chips.push({ id: 'gsc', label: 'GSC 成效' });
+  if (hasKeywords) chips.push({ id: 'keywords', label: '熱門關鍵字' });
+  if (hasAiHighlights) chips.push({ id: 'ai', label: 'SEO×AI 亮點' });
+  if (hasArticles) chips.push({ id: 'articles', label: '文章成效' });
+  if (chips.length > 1) {
+    html += '<div class="section-jump">';
+    chips.forEach(function (c) { html += '<a class="jump-chip" href="#' + c.id + '">' + escapeHtml(c.label) + '</a>'; });
+    html += '</div>';
+  }
+
+  if (hasBackground) {
+    html += '<section id="bg"><h2>品牌背景</h2><div class="prose">' + escapeHtml(profile.background) + '</div></section>';
+  }
+
+  if (hasStrategy) {
+    html += '<section id="strategy"><h2>優化策略</h2><div class="prose">' + escapeHtml(profile.strategy) + '</div></section>';
+  }
+
+  if (hasTrendChart) {
+    html += '<section id="trend"><h2>成效時間軸</h2><div class="chart-card"><canvas id="trendChart" height="220"></canvas></div></section>';
+  }
+
+  html += '<section id="gsc"><h2>GSC 成效（累計至今）</h2><div class="stat-grid">';
   html += '<div class="stat-card"><div class="value">' + fmt(site.keywordCount) + '</div><div class="label">收錄關鍵字數</div></div>';
   html += '<div class="stat-card"><div class="value">' + fmt(site.clicks) + '</div><div class="label">總點擊</div></div>';
   html += '<div class="stat-card"><div class="value">' + fmt(site.impressions) + '</div><div class="label">總曝光</div></div>';
   html += '<div class="stat-card"><div class="value">' + site.ctrText + '</div><div class="label">平均CTR</div></div>';
   html += '<div class="stat-card" style="grid-column: 1 / -1;"><div class="value">' + site.avgPositionText + '</div><div class="label">平均排名</div></div>';
   html += '</div></section>';
-
-  var trend = data.trend || [];
-  if (trend.length >= 2) {
-    html += '<section><h2>曝光與點擊趨勢</h2><div class="chart-card"><canvas id="trendChart" height="220"></canvas></div></section>';
-  }
 
   if (data.showComparison && data.comparison) {
     var c = data.comparison;
@@ -420,8 +477,22 @@ function renderReport(data) {
     html += '</div></section>';
   }
 
+  if (hasKeywords) {
+    html += '<section id="keywords"><h2>熱門關鍵字</h2><div class="keyword-chip-row">';
+    topKeywords.forEach(function (kw) {
+      html += '<div class="keyword-chip">' + escapeHtml(kw.query) + '<b>' + fmt(kw.clicks) + ' 點擊</b></div>';
+    });
+    html += '</div></section>';
+  }
+
+  if (hasAiHighlights) {
+    html += '<section id="ai"><h2>SEO × AI 亮點</h2><ul class="ai-highlights">';
+    profile.aiHighlights.forEach(function (h) { html += '<li>' + escapeHtml(h) + '</li>'; });
+    html += '</ul></section>';
+  }
+
   if (articles.length > 0) {
-    html += '<section><h2>文章成效</h2>';
+    html += '<section id="articles"><h2>文章成效</h2>';
     articles.forEach(function (a) {
       html += '<div class="article-card">';
       if (a.url) {
