@@ -32,6 +32,10 @@
   .hero-stats .box { text-align: center; }
   .hero-stats .num { font-size: 2em; font-weight: 800; color: var(--ink); }
   .hero-stats .label { font-size: 0.78em; color: #8b7a66; margin-top: 2px; }
+  .hero-stats .box.live { grid-column: 1 / -1; border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 4px; }
+  .hero-stats .box.live .num { font-size: 1.5em; color: var(--primary-color); }
+  .live-badge { display: inline-block; background: var(--green); color: #fff; font-size: 0.62em; font-weight: bold; padding: 2px 7px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+  .feed-item .feed-live { font-size: 0.8em; color: var(--green); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color); }
   .browse-link { display: block; text-align: center; background: var(--ink); color: #F9F3E9; text-decoration: none; border-radius: 10px; padding: 14px; margin: 20px 0 28px; font-weight: bold; }
   .feed-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; text-decoration: none; display: block; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid var(--primary-color); }
   .feed-item .feed-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
@@ -222,6 +226,9 @@ function renderOverview(data) {
   html += '<div class="hero-stats">';
   html += '<div class="box"><div class="num">' + fmt(data.clientCount) + '</div><div class="label">服務客戶數</div></div>';
   html += '<div class="box"><div class="num">' + fmt(data.categoryCount) + '</div><div class="label">產業類別</div></div>';
+  if (data.recentClicks || data.recentImpressions) {
+    html += '<div class="box live"><div class="num">' + fmt(data.recentClicks) + '</div><div class="label">近期自然點擊加總<span class="live-badge">即時</span></div></div>';
+  }
   html += '</div>';
   html += '</div>';
 
@@ -237,6 +244,9 @@ function renderOverview(data) {
       if (f.category) html += '<div class="feed-cat">' + escapeHtml(f.category) + '</div>';
       if (f.headline) html += '<div class="feed-headline">' + escapeHtml(f.headline) + '</div>';
       if (f.value) html += '<div class="feed-value">' + escapeHtml(f.value) + (f.unit ? ' ' + escapeHtml(f.unit) : '') + '</div>';
+      if (f.liveClicks != null) {
+        html += '<div class="feed-live">' + escapeHtml(f.liveMonth) + ' 自然點擊 ' + fmt(f.liveClicks) + '・曝光 ' + fmt(f.liveImpressions) + '<span class="live-badge">即時</span></div>';
+      }
       html += '</a>';
     });
   }
