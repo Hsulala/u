@@ -33,10 +33,13 @@
   .hero-stats .num { font-size: 2em; font-weight: 800; color: var(--ink); }
   .hero-stats .label { font-size: 0.78em; color: #8b7a66; margin-top: 2px; }
   .browse-link { display: block; text-align: center; background: var(--ink); color: #F9F3E9; text-decoration: none; border-radius: 10px; padding: 14px; margin: 20px 0 28px; font-weight: bold; }
-  .feed-item { background: var(--card-bg); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; text-decoration: none; display: block; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-  .feed-item .feed-top { display: flex; justify-content: space-between; font-size: 0.75em; color: #a89985; margin-bottom: 6px; }
-  .feed-item .feed-headline { font-weight: bold; font-size: 0.95em; line-height: 1.4; }
-  .feed-item .feed-value { color: var(--primary-color); font-weight: 800; margin-top: 4px; font-size: 0.9em; }
+  .feed-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; text-decoration: none; display: block; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid var(--primary-color); }
+  .feed-item .feed-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .feed-item .feed-name { font-weight: 800; font-size: 1.08em; color: var(--ink); }
+  .feed-item .feed-date { font-size: 0.72em; color: #a89985; white-space: nowrap; margin-left: 8px; }
+  .feed-item .feed-cat { font-size: 0.72em; color: #a89985; margin-bottom: 8px; }
+  .feed-item .feed-headline { font-size: 0.9em; line-height: 1.5; color: #55483c; margin-bottom: 6px; }
+  .feed-item .feed-value { color: var(--primary-color); font-weight: 800; font-size: 1em; }
 
   /* 清單頁 */
   h1 { text-align: center; font-size: 1.4em; margin: 10px 0 4px; }
@@ -71,7 +74,8 @@
   .compare-arrow { font-size: 1.5em; color: var(--primary-color); text-align: center; }
   .compare-col.after .num { color: var(--green); }
   .article-card { background: var(--card-bg); border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-  .article-card .title { font-weight: bold; margin-bottom: 6px; }
+  .article-card .title { font-weight: bold; margin-bottom: 6px; display: block; color: var(--text-color); text-decoration: none; }
+  a.article-card .title:hover, .article-card a.title:hover { color: var(--primary-color); }
   .article-card .pub { color: #999; font-size: 0.8em; margin-bottom: 10px; }
   .article-stats { display: flex; gap: 16px; font-size: 0.9em; margin-bottom: 8px; }
   .article-stats b { color: var(--primary-color); }
@@ -212,10 +216,11 @@ function renderOverview(data) {
     html += '<h2>最新成效動態</h2>';
     feed.forEach(function (f) {
       html += '<a class="feed-item" href="?client=' + encodeURIComponent(f.clientId) + '">';
-      html += '<div class="feed-top"><span>' + escapeHtml(f.category || '') + ' · ' + escapeHtml(f.name) + '</span>';
-      if (f.date) html += '<span>' + escapeHtml(f.date) + '</span>';
+      html += '<div class="feed-top"><span class="feed-name">' + escapeHtml(f.name) + '</span>';
+      if (f.date) html += '<span class="feed-date">' + escapeHtml(f.date) + '</span>';
       html += '</div>';
-      html += '<div class="feed-headline">' + escapeHtml(f.headline) + '</div>';
+      if (f.category) html += '<div class="feed-cat">' + escapeHtml(f.category) + '</div>';
+      if (f.headline) html += '<div class="feed-headline">' + escapeHtml(f.headline) + '</div>';
       if (f.value) html += '<div class="feed-value">' + escapeHtml(f.value) + (f.unit ? ' ' + escapeHtml(f.unit) : '') + '</div>';
       html += '</a>';
     });
@@ -419,7 +424,11 @@ function renderReport(data) {
     html += '<section><h2>文章成效</h2>';
     articles.forEach(function (a) {
       html += '<div class="article-card">';
-      html += '<div class="title">' + escapeHtml(a.title) + '</div>';
+      if (a.url) {
+        html += '<a class="title" href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener">' + escapeHtml(a.title) + ' ↗</a>';
+      } else {
+        html += '<div class="title">' + escapeHtml(a.title) + '</div>';
+      }
       if (a.publishDateText) html += '<div class="pub">發布日 ' + escapeHtml(a.publishDateText) + '</div>';
       html += '<div class="article-stats"><div>點擊 <b>' + fmt(a.clicks) + '</b></div><div>曝光 <b>' + fmt(a.impressions) + '</b></div><div>排名 <b>' + a.avgPosition.toFixed(1) + '</b></div></div>';
       if (a.topKeywords && a.topKeywords.length > 0) {
