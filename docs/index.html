@@ -6,10 +6,37 @@
 <title>MaKarma 成效展示</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
-  :root { --primary-color: #F39800; --background-color: #f9f9f9; --text-color: #333; --card-bg: #ffffff; --border-color: #e0e0e0; --green: #28a745; }
+  :root {
+    --primary-color: #C57824; --background-color: #F7F5F1; --text-color: #302720;
+    --card-bg: #ffffff; --border-color: #E1DCD1; --green: #256245; --ink: #302720;
+  }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background-color: var(--background-color); color: var(--text-color); }
-  .container { max-width: 640px; margin: 0 auto; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; background-color: var(--background-color); color: var(--text-color); }
+  .container { max-width: 640px; margin: 0 auto; padding: 20px; }
+
+  .topbar { background: var(--ink); padding: 14px 20px; }
+  .topbar-inner { max-width: 640px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+  .brand { color: #F9F3E9; font-weight: 800; font-size: 1.05em; }
+  .brand .sub { color: #C9BBA6; font-weight: normal; font-size: 0.75em; margin-left: 6px; }
+  .tabs { display: flex; gap: 6px; }
+  .tab { color: #E5DCCB; text-decoration: none; font-size: 0.82em; padding: 6px 12px; border-radius: 999px; }
+  .tab.active { background: var(--primary-color); color: #fff; font-weight: bold; }
+
+  /* 總覽頁 */
+  .hero { padding: 6px 0 24px; }
+  .hero-eyebrow { font-size: 0.75em; letter-spacing: 0.1em; color: var(--primary-color); font-weight: bold; margin-bottom: 8px; }
+  .hero h1 { text-align: left; font-size: 1.7em; line-height: 1.35; margin: 0 0 10px; }
+  .hero h1 .hl { color: var(--primary-color); }
+  .hero-desc { color: #6b6055; font-size: 0.92em; line-height: 1.6; margin-bottom: 16px; }
+  .hero-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--card-bg); border-radius: 14px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+  .hero-stats .box { text-align: center; }
+  .hero-stats .num { font-size: 2em; font-weight: 800; color: var(--ink); }
+  .hero-stats .label { font-size: 0.78em; color: #8b7a66; margin-top: 2px; }
+  .browse-link { display: block; text-align: center; background: var(--ink); color: #F9F3E9; text-decoration: none; border-radius: 10px; padding: 14px; margin: 20px 0 28px; font-weight: bold; }
+  .feed-item { background: var(--card-bg); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; text-decoration: none; display: block; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .feed-item .feed-top { display: flex; justify-content: space-between; font-size: 0.75em; color: #a89985; margin-bottom: 6px; }
+  .feed-item .feed-headline { font-weight: bold; font-size: 0.95em; line-height: 1.4; }
+  .feed-item .feed-value { color: var(--primary-color); font-weight: 800; margin-top: 4px; font-size: 0.9em; }
 
   /* 清單頁 */
   h1 { text-align: center; font-size: 1.4em; margin: 10px 0 4px; }
@@ -81,6 +108,15 @@
 </style>
 </head>
 <body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">MaKarma <span class="sub">SEO 成效戰情室</span></div>
+    <div class="tabs">
+      <a class="tab" id="tab-overview" href="?page=overview">總覽</a>
+      <a class="tab" id="tab-browse" href="?page=browse">客戶列表</a>
+    </div>
+  </div>
+</div>
 <div class="container" id="app">
   <div class="loading">載入中...</div>
 </div>
@@ -144,6 +180,50 @@ function showError(message) {
     '<div style="margin-top:14px;"><button id="retryBtn" style="padding:10px 20px;border-radius:8px;border:1px solid var(--border-color);background:#fff;cursor:pointer;">重新載入</button></div></div>';
   var btn = document.getElementById('retryBtn');
   if (btn) btn.addEventListener('click', route);
+}
+
+// ---------- 總覽頁 ----------
+
+function renderOverviewPage() {
+  jsonpWithRetry(API_BASE + "?api=overview").then(function (data) {
+    renderOverview(data);
+  }).catch(function (err) {
+    showError("載入總覽失敗：" + err.message);
+  });
+}
+
+function renderOverview(data) {
+  var feed = data.feed || [];
+  var html = '';
+
+  html += '<div class="hero">';
+  html += '<div class="hero-eyebrow">MAKARMA SEO 成效戰情室</div>';
+  html += '<h1>用<span class="hl">數據</span>說話，<br>陪每個客戶一起成長</h1>';
+  html += '<div class="hero-desc">即時串接 Google Search Console 數據，加上業績成長、客戶回饋等第一線故事，完整呈現每個客戶的成效軌跡。</div>';
+  html += '<div class="hero-stats">';
+  html += '<div class="box"><div class="num">' + fmt(data.clientCount) + '</div><div class="label">服務客戶數</div></div>';
+  html += '<div class="box"><div class="num">' + fmt(data.categoryCount) + '</div><div class="label">產業類別</div></div>';
+  html += '</div>';
+  html += '</div>';
+
+  html += '<a class="browse-link" href="?page=browse">瀏覽所有客戶成效 →</a>';
+
+  if (feed.length > 0) {
+    html += '<h2>最新成效動態</h2>';
+    feed.forEach(function (f) {
+      html += '<a class="feed-item" href="?client=' + encodeURIComponent(f.clientId) + '">';
+      html += '<div class="feed-top"><span>' + escapeHtml(f.category || '') + ' · ' + escapeHtml(f.name) + '</span>';
+      if (f.date) html += '<span>' + escapeHtml(f.date) + '</span>';
+      html += '</div>';
+      html += '<div class="feed-headline">' + escapeHtml(f.headline) + '</div>';
+      if (f.value) html += '<div class="feed-value">' + escapeHtml(f.value) + (f.unit ? ' ' + escapeHtml(f.unit) : '') + '</div>';
+      html += '</a>';
+    });
+  }
+
+  html += '<footer>資料每日自動同步 Google Search Console</footer>';
+
+  app.innerHTML = html;
 }
 
 // ---------- 清單頁 ----------
@@ -290,7 +370,7 @@ function renderReport(data) {
   var articles = data.articles || [];
 
   var html = '';
-  html += '<a class="back" href="?">← 所有客戶</a>';
+  html += '<a class="back" href="?page=browse">← 所有客戶</a>';
   html += '<h1>' + escapeHtml(client.name) + '</h1>';
   html += '<div class="meta"><span>' + escapeHtml(client.domain) + '</span>';
   if (data.launchDateText) html += '<span>上線日 ' + escapeHtml(data.launchDateText) + '</span>';
@@ -411,20 +491,35 @@ function renderTrendChart(trend) {
 // ---------- 路由 ----------
 
 function navigateTo(clientId) {
-  var url = clientId ? ('?client=' + encodeURIComponent(clientId)) : '?';
+  var url = clientId ? ('?client=' + encodeURIComponent(clientId)) : '?page=overview';
   history.pushState({ clientId: clientId }, '', url);
   route();
+}
+
+function updateActiveTab(page) {
+  var tabOverview = document.getElementById('tab-overview');
+  var tabBrowse = document.getElementById('tab-browse');
+  if (tabOverview) tabOverview.classList.toggle('active', page === 'overview');
+  if (tabBrowse) tabBrowse.classList.toggle('active', page === 'browse');
 }
 
 function route() {
   var params = new URLSearchParams(location.search);
   var clientId = params.get('client');
+  var page = params.get('page');
   app.innerHTML = '<div class="loading">載入中...</div>';
+
   if (clientId) {
+    updateActiveTab(null);
     renderReportPage(clientId);
-  } else {
-    document.title = 'MaKarma 成效展示';
+  } else if (page === 'browse') {
+    updateActiveTab('browse');
+    document.title = 'MaKarma 成效展示 · 客戶列表';
     renderListPage();
+  } else {
+    updateActiveTab('overview');
+    document.title = 'MaKarma SEO 成效戰情室';
+    renderOverviewPage();
   }
 }
 
