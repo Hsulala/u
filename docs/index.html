@@ -14,10 +14,36 @@
   }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; background-color: var(--background-color); color: var(--text-color); }
-  .container { max-width: 640px; margin: 0 auto; padding: 20px; }
+  .container { max-width: 680px; margin: 0 auto; padding: 20px; }
+
+  /* 兩欄外殼：桌面版左側常駐側邊欄（分類導覽），手機版退回原本的頂部深色列 */
+  .shell { display: flex; align-items: flex-start; min-height: 100vh; }
+  .main { flex: 1; min-width: 0; }
+  .sidebar { display: none; }
+  @media (min-width: 900px) {
+    .sidebar {
+      display: block; width: 250px; flex-shrink: 0; background: var(--ink); color: #F9F3E9;
+      min-height: 100vh; position: sticky; top: 0; align-self: flex-start; padding: 26px 20px;
+    }
+    .topbar { display: none; }
+    .container { padding: 32px 28px; max-width: 760px; }
+  }
+  .sidebar-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
+  .sidebar-logo { width: 34px; height: 34px; border-radius: 8px; }
+  .sidebar-brand-name { font-weight: 800; }
+  .sidebar-brand-sub { font-size: 0.72em; color: #C9BBA6; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; margin-bottom: 26px; }
+  .sidebar-nav a { color: #E5DCCB; text-decoration: none; font-size: 0.92em; padding: 9px 12px; border-radius: 8px; }
+  .sidebar-nav a.active { background: var(--primary-color); color: #fff; font-weight: bold; }
+  .sidebar-nav a:hover:not(.active) { background: rgba(255,255,255,0.06); }
+  .sidebar-section-label { font-size: 0.7em; letter-spacing: 0.08em; color: #8b7a66; margin: 0 0 8px 12px; }
+  .sidebar-categories { display: flex; flex-direction: column; gap: 1px; }
+  .sidebar-categories a { display: flex; justify-content: space-between; gap: 8px; color: #C9BBA6; text-decoration: none; font-size: 0.85em; padding: 8px 12px; border-radius: 8px; }
+  .sidebar-categories a:hover { background: rgba(255,255,255,0.06); color: #F9F3E9; }
+  .sidebar-categories a .count { color: #8b7a66; }
 
   .topbar { background: var(--ink); padding: 14px 20px; }
-  .topbar-inner { max-width: 640px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-inner { max-width: 680px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
   .brand { color: #F9F3E9; font-weight: 800; font-size: 1.05em; }
   .brand .sub { color: #C9BBA6; font-weight: normal; font-size: 0.75em; margin-left: 6px; }
   .tabs { display: flex; gap: 6px; }
@@ -47,7 +73,15 @@
   .feed-item .feed-headline { font-size: 0.9em; line-height: 1.5; color: #55483c; margin-bottom: 6px; }
   .feed-item .feed-value { color: var(--primary-color); font-weight: 800; font-size: 1em; }
 
-  /* 品牌小 logo（讀不到客戶網站的 favicon 時，退回顯示名稱字首當佔位圖） */
+  /* 精選案例（總覽頁最上面，同事那頁「5大特色」風格的手工精選區塊，讀「首頁精選(手動)」分頁） */
+  .featured-grid { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 26px; }
+  .featured-card { display: flex; gap: 14px; align-items: flex-start; background: var(--card-bg); border-radius: 12px; padding: 16px 18px; text-decoration: none; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .featured-num { font-size: 1.5em; font-weight: 800; color: var(--primary-color); opacity: 0.45; flex-shrink: 0; width: 30px; line-height: 1.3; }
+  .featured-body { min-width: 0; }
+  .featured-title { font-weight: 700; line-height: 1.55; margin-bottom: 8px; }
+  .featured-sub { display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: #6b6055; }
+
+  /* 品牌小 logo：優先真實 logo，沒有退回 favicon，再沒有退回名稱字首佔位圖 */
   .logo-wrap { position: relative; display: inline-block; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid var(--border-color); flex-shrink: 0; }
   .logo-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 15%; background: #fff; }
   .logo-wrap .fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-color); background: linear-gradient(135deg, #fff, #f3ede2); }
@@ -57,12 +91,19 @@
   .logo-wrap.sz-32 .fallback { font-size: 0.85em; }
   .logo-wrap.sz-48 { width: 48px; height: 48px; border-radius: 12px; }
   .logo-wrap.sz-48 .fallback { font-size: 1.2em; }
-  .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
   .feed-name-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .feed-name-group .feed-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .report-head { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 10px 0 4px; }
   .report-head h1 { margin: 0; text-align: left; }
   .report-intro { text-align: center; color: #6b6055; font-size: 0.9em; line-height: 1.6; margin: 0 0 6px; }
+
+  /* 客戶回饋／搜尋成果一類的小標籤，跟 AI 曝光/AI 摘要徽章、代表關鍵字＋搜尋量小標籤 */
+  .kind-badge { display: inline-block; font-size: 0.72em; font-weight: 700; color: var(--primary-color); margin-bottom: 4px; }
+  .kw-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+  .kw-chip { background: #fff7ec; border: 1px solid var(--border-color); border-radius: 999px; padding: 5px 12px; font-size: 0.78em; color: #55483c; }
+  .kw-chip b { color: var(--primary-color); margin-left: 6px; font-weight: 700; }
+  .badge { display: inline-block; font-size: 0.68em; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: #f0ece3; color: #8b7a66; }
+  .badge-ai { background: linear-gradient(135deg, #7c3aed, #c026d3); color: #fff; }
 
   /* 清單頁 */
   h1 { text-align: center; font-size: 1.4em; margin: 10px 0 4px; }
@@ -70,14 +111,19 @@
   #search { width: 100%; padding: 14px 16px; font-size: 1em; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 14px; }
   .jump-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 22px; }
   .jump-chip { font-size: 0.8em; background: #fff; border: 1px solid var(--border-color); border-radius: 999px; padding: 6px 12px; color: var(--text-color); text-decoration: none; cursor: pointer; }
-  .category-section { margin-bottom: 26px; }
+  .category-section { margin-bottom: 26px; scroll-margin-top: 16px; }
   .category-title { font-size: 1.15em; font-weight: bold; border-left: 4px solid var(--primary-color); padding-left: 10px; margin-bottom: 10px; }
   .sub-title { font-size: 0.85em; color: #999; margin: 14px 0 8px 2px; }
   .card { display: block; background: var(--card-bg); border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; text-decoration: none; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid var(--primary-color); cursor: pointer; }
+  .card-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 2px; }
+  .card-head-text { min-width: 0; }
   .card .name { font-size: 1.1em; font-weight: bold; }
   .card .domain { color: #999; font-size: 0.85em; margin-top: 4px; }
   .card .intro { color: #6b6055; font-size: 0.85em; margin-top: 6px; line-height: 1.5; }
-  .card .launch { color: var(--primary-color); font-size: 0.8em; margin-top: 6px; }
+  .card .launch { color: var(--primary-color); font-size: 0.8em; margin-top: 8px; }
+  .card-stat { margin: 2px 0 2px; }
+  .card-stat-value { font-size: 1.25em; font-weight: 800; color: var(--primary-color); }
+  .card-stat-unit { font-size: 0.78em; color: #8b7a66; margin-left: 6px; }
   #empty { text-align: center; color: #999; padding: 40px 0; display: none; }
 
   /* 報告頁 */
@@ -114,6 +160,9 @@
   .story-card { background: var(--card-bg); border-radius: 14px; padding: 22px 20px; margin-bottom: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); border-top: 5px solid var(--story-accent, var(--primary-color)); }
   .story-kind { font-size: 0.75em; color: var(--story-accent, var(--primary-color)); font-weight: bold; letter-spacing: 0.05em; margin-bottom: 6px; }
   .story-headline { font-size: 1.3em; font-weight: 800; line-height: 1.4; margin-bottom: 16px; }
+  .story-standalone-stat { margin: -8px 0 14px; }
+  .story-standalone-value { font-size: 1.8em; font-weight: 800; color: var(--story-accent, var(--primary-color)); }
+  .story-standalone-unit { font-size: 0.85em; color: #8b7a66; margin-left: 8px; }
   .hero-compare { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 16px; }
   .hero-compare .box { text-align: center; }
   .hero-compare .num { font-size: 1.8em; font-weight: 800; color: #999; }
@@ -151,17 +200,36 @@
 </style>
 </head>
 <body>
-<div class="topbar">
-  <div class="topbar-inner">
-    <div class="brand">MaKarma <span class="sub">SEO 成效戰情室</span></div>
-    <div class="tabs">
-      <a class="tab" id="tab-overview" href="?page=overview">總覽</a>
-      <a class="tab" id="tab-browse" href="?page=browse">客戶列表</a>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img class="sidebar-logo" src="https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png" alt="">
+      <div>
+        <div class="sidebar-brand-name">MaKarma</div>
+        <div class="sidebar-brand-sub">SEO 成效戰情室</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a id="nav-overview" href="?page=overview">成效總覽</a>
+      <a id="nav-browse" href="?page=browse">客戶列表</a>
+    </nav>
+    <div class="sidebar-section-label" id="sidebarCatLabel" style="display:none;">依產業瀏覽</div>
+    <div class="sidebar-categories" id="sidebarCategories"></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">MaKarma <span class="sub">SEO 成效戰情室</span></div>
+        <div class="tabs">
+          <a class="tab" id="tab-overview" href="?page=overview">總覽</a>
+          <a class="tab" id="tab-browse" href="?page=browse">客戶列表</a>
+        </div>
+      </div>
+    </div>
+    <div class="container" id="app">
+      <div class="loading">載入中...</div>
     </div>
   </div>
-</div>
-<div class="container" id="app">
-  <div class="loading">載入中...</div>
 </div>
 
 <script>
@@ -232,6 +300,20 @@ function logoHtml(logoUrl, domain, name, sizeClass) {
   return html;
 }
 
+// 代表關鍵字＋月搜尋量／AI曝光／AI摘要小標籤列，清單卡片跟報告頁的故事卡都會用到
+function keywordBadgeRow(story) {
+  if (!story || !story.repKeyword) return '';
+  var html = '<div class="kw-row">';
+  html += '<span class="kw-chip">' + escapeHtml(story.repKeyword);
+  if (story.repKeywordVolume) html += '<b>月搜尋量 ' + fmt(story.repKeywordVolume) + '</b>';
+  html += '</span>';
+  html += '<span class="badge">SEO 搜尋</span>';
+  if (story.hasAiExposure) html += '<span class="badge badge-ai">AI 曝光</span>';
+  if (story.hasAiSummary) html += '<span class="badge badge-ai">AI 摘要</span>';
+  html += '</div>';
+  return html;
+}
+
 var app = document.getElementById("app");
 
 function showError(message) {
@@ -239,6 +321,44 @@ function showError(message) {
     '<div style="margin-top:14px;"><button id="retryBtn" style="padding:10px 20px;border-radius:8px;border:1px solid var(--border-color);background:#fff;cursor:pointer;">重新載入</button></div></div>';
   var btn = document.getElementById('retryBtn');
   if (btn) btn.addEventListener('click', route);
+}
+
+// ---------- 側邊欄分類導覽（桌面版常駐顯示，跟清單頁共用同一份「客戶列表」資料，不重複打 API） ----------
+
+var categoryCache = null;
+var categoryFetchPromise = null;
+
+function fetchCategories_() {
+  if (categoryCache) return Promise.resolve(categoryCache);
+  if (!categoryFetchPromise) {
+    categoryFetchPromise = jsonpWithRetry(API_BASE + "?api=list").then(function (data) {
+      categoryCache = data.groups || [];
+      return categoryCache;
+    });
+  }
+  return categoryFetchPromise;
+}
+
+function renderSidebarCategories(groups) {
+  var el = document.getElementById('sidebarCategories');
+  var label = document.getElementById('sidebarCatLabel');
+  if (!el) return;
+  if (!groups || groups.length === 0) {
+    el.innerHTML = '';
+    if (label) label.style.display = 'none';
+    return;
+  }
+  if (label) label.style.display = '';
+  var html = '';
+  groups.forEach(function (g, i) {
+    var count = g.subGroups.reduce(function (s, sub) { return s + sub.clients.length; }, 0);
+    html += '<a href="?page=browse#cat-' + i + '"><span>' + escapeHtml(g.category) + '</span><span class="count">' + count + '</span></a>';
+  });
+  el.innerHTML = html;
+}
+
+function ensureSidebarCategories() {
+  fetchCategories_().then(renderSidebarCategories).catch(function () { /* 側邊欄抓不到就先不顯示，不影響主要內容 */ });
 }
 
 // ---------- 總覽頁 ----------
@@ -253,6 +373,7 @@ function renderOverviewPage() {
 
 function renderOverview(data) {
   var feed = data.feed || [];
+  var featured = data.featured || [];
   var html = '';
 
   html += '<div class="hero">';
@@ -267,6 +388,21 @@ function renderOverview(data) {
   }
   html += '</div>';
   html += '</div>';
+
+  if (featured.length > 0) {
+    html += '<h2>精選案例</h2>';
+    html += '<div class="featured-grid">';
+    featured.forEach(function (f, i) {
+      html += '<a class="featured-card" href="?client=' + encodeURIComponent(f.clientId) + '">';
+      html += '<div class="featured-num">' + String(i + 1).padStart(2, '0') + '</div>';
+      html += '<div class="featured-body">';
+      html += '<div class="featured-title">' + escapeHtml(f.title) + '</div>';
+      html += '<div class="featured-sub">' + logoHtml(f.logo, f.domain, f.name, 'sz-28') + '<span>' + escapeHtml(f.name) + (f.subtitle ? '｜' + escapeHtml(f.subtitle) : '') + '</span></div>';
+      html += '</div>';
+      html += '</a>';
+    });
+    html += '</div>';
+  }
 
   html += '<a class="browse-link" href="?page=browse">瀏覽所有客戶成效 →</a>';
 
@@ -295,8 +431,9 @@ function renderOverview(data) {
 // ---------- 清單頁 ----------
 
 function renderListPage() {
-  jsonpWithRetry(API_BASE + "?api=list").then(function (data) {
-    renderGroups(data.groups || []);
+  fetchCategories_().then(function (groups) {
+    renderSidebarCategories(groups);
+    renderGroups(groups);
   }).catch(function (err) {
     showError("載入客戶清單失敗：" + err.message);
   });
@@ -324,9 +461,14 @@ function renderGroups(groups) {
       sub.clients.forEach(function (c) {
         var searchKey = (c.name + ' ' + c.domain).toLowerCase();
         html += '<a class="card" data-search="' + escapeHtml(searchKey) + '" data-client-id="' + escapeHtml(c.id) + '">';
-        html += '<div class="card-head">' + logoHtml(c.logo, c.domain, c.name, 'sz-32') + '<div class="name">' + escapeHtml(c.name) + '</div></div>';
+        html += '<div class="card-head">' + logoHtml(c.logo, c.domain, c.name, 'sz-32') + '<div class="card-head-text">';
+        if (c.kind) html += '<div class="kind-badge">' + escapeHtml(c.kind) + '</div>';
+        html += '<div class="name">' + escapeHtml(c.name) + '</div>';
+        html += '</div></div>';
+        if (c.value) html += '<div class="card-stat"><span class="card-stat-value">' + escapeHtml(c.value) + '</span>' + (c.unit ? '<span class="card-stat-unit">' + escapeHtml(c.unit) + '</span>' : '') + '</div>';
         html += '<div class="domain">' + escapeHtml(c.domain) + '</div>';
         if (c.intro) html += '<div class="intro">' + escapeHtml(c.intro) + '</div>';
+        html += keywordBadgeRow(c);
         if (c.launchDate) html += '<div class="launch">上線日 ' + escapeHtml(c.launchDate) + '</div>';
         html += '</a>';
       });
@@ -338,6 +480,11 @@ function renderGroups(groups) {
   html += '<div id="empty">找不到符合的客戶</div>';
 
   app.innerHTML = html;
+
+  if (location.hash) {
+    var target = document.querySelector(location.hash);
+    if (target) target.scrollIntoView();
+  }
 
   app.querySelectorAll('.card').forEach(function (card) {
     card.addEventListener('click', function () {
@@ -396,6 +543,12 @@ function renderStorySection(story) {
   if (story.kind) html += '<div class="story-kind">' + escapeHtml(story.kind) + '</div>';
   if (story.headline) html += '<div class="story-headline">' + escapeHtml(story.headline) + '</div>';
 
+  if (story.value && !story.heroComparison) {
+    html += '<div class="story-standalone-stat"><span class="story-standalone-value">' + escapeHtml(story.value) + '</span>';
+    if (story.unit) html += '<span class="story-standalone-unit">' + escapeHtml(story.unit) + '</span>';
+    html += '</div>';
+  }
+
   var hc = story.heroComparison;
   if (hc) {
     html += '<div class="hero-compare">';
@@ -406,6 +559,8 @@ function renderStorySection(story) {
     html += '</div>';
     html += '</div>';
   }
+
+  html += keywordBadgeRow(story);
 
   var business = story.business || [];
   if (business.length > 0) {
@@ -625,10 +780,14 @@ function navigateTo(clientId) {
 }
 
 function updateActiveTab(page) {
-  var tabOverview = document.getElementById('tab-overview');
-  var tabBrowse = document.getElementById('tab-browse');
-  if (tabOverview) tabOverview.classList.toggle('active', page === 'overview');
-  if (tabBrowse) tabBrowse.classList.toggle('active', page === 'browse');
+  ['tab-overview', 'nav-overview'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('active', page === 'overview');
+  });
+  ['tab-browse', 'nav-browse'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('active', page === 'browse');
+  });
 }
 
 function route() {
@@ -653,6 +812,7 @@ function route() {
 
 window.addEventListener('popstate', route);
 route();
+ensureSidebarCategories();
 </script>
 </body>
 </html>
