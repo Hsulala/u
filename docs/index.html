@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MaKarma 成效展示</title>
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png">
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -38,12 +40,29 @@
   .feed-item .feed-live { font-size: 0.8em; color: var(--green); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color); }
   .browse-link { display: block; text-align: center; background: var(--ink); color: #F9F3E9; text-decoration: none; border-radius: 10px; padding: 14px; margin: 20px 0 28px; font-weight: bold; }
   .feed-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; text-decoration: none; display: block; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid var(--primary-color); }
-  .feed-item .feed-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .feed-item .feed-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; }
   .feed-item .feed-name { font-weight: 800; font-size: 1.08em; color: var(--ink); }
   .feed-item .feed-date { font-size: 0.72em; color: #a89985; white-space: nowrap; margin-left: 8px; }
   .feed-item .feed-cat { font-size: 0.72em; color: #a89985; margin-bottom: 8px; }
   .feed-item .feed-headline { font-size: 0.9em; line-height: 1.5; color: #55483c; margin-bottom: 6px; }
   .feed-item .feed-value { color: var(--primary-color); font-weight: 800; font-size: 1em; }
+
+  /* 品牌小 logo（讀不到客戶網站的 favicon 時，退回顯示名稱字首當佔位圖） */
+  .logo-wrap { position: relative; display: inline-block; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid var(--border-color); flex-shrink: 0; }
+  .logo-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 15%; background: #fff; }
+  .logo-wrap .fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-color); background: linear-gradient(135deg, #fff, #f3ede2); }
+  .logo-wrap.sz-28 { width: 28px; height: 28px; }
+  .logo-wrap.sz-28 .fallback { font-size: 0.8em; }
+  .logo-wrap.sz-32 { width: 32px; height: 32px; }
+  .logo-wrap.sz-32 .fallback { font-size: 0.85em; }
+  .logo-wrap.sz-48 { width: 48px; height: 48px; border-radius: 12px; }
+  .logo-wrap.sz-48 .fallback { font-size: 1.2em; }
+  .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+  .feed-name-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .feed-name-group .feed-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .report-head { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 10px 0 4px; }
+  .report-head h1 { margin: 0; text-align: left; }
+  .report-intro { text-align: center; color: #6b6055; font-size: 0.9em; line-height: 1.6; margin: 0 0 6px; }
 
   /* 清單頁 */
   h1 { text-align: center; font-size: 1.4em; margin: 10px 0 4px; }
@@ -57,6 +76,7 @@
   .card { display: block; background: var(--card-bg); border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; text-decoration: none; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid var(--primary-color); cursor: pointer; }
   .card .name { font-size: 1.1em; font-weight: bold; }
   .card .domain { color: #999; font-size: 0.85em; margin-top: 4px; }
+  .card .intro { color: #6b6055; font-size: 0.85em; margin-top: 6px; line-height: 1.5; }
   .card .launch { color: var(--primary-color); font-size: 0.8em; margin-top: 6px; }
   #empty { text-align: center; color: #999; padding: 40px 0; display: none; }
 
@@ -196,6 +216,22 @@ function fmt(n) {
   return Number(n || 0).toLocaleString('en-US');
 }
 
+// 品牌小 logo：優先用客戶自己的品牌 logo（同事那份資料同步來的，或「客戶介紹(手動)」
+// 自己填的網址），沒有的話退回借用客戶網站的 favicon，兩者都沒有才用名稱字首當佔位圖，
+// 版面不會因為圖片載入失敗而空一塊。
+function logoHtml(logoUrl, domain, name, sizeClass) {
+  var initials = escapeHtml((name || '?').trim().charAt(0).toUpperCase());
+  var host = domain ? String(domain).split(',')[0].trim() : '';
+  var src = logoUrl || (host ? ('https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(host)) : '');
+  var html = '<span class="logo-wrap ' + sizeClass + '">';
+  html += '<span class="fallback">' + initials + '</span>';
+  if (src) {
+    html += '<img src="' + escapeHtml(src) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+  }
+  html += '</span>';
+  return html;
+}
+
 var app = document.getElementById("app");
 
 function showError(message) {
@@ -238,7 +274,7 @@ function renderOverview(data) {
     html += '<h2>最新成效動態</h2>';
     feed.forEach(function (f) {
       html += '<a class="feed-item" href="?client=' + encodeURIComponent(f.clientId) + '">';
-      html += '<div class="feed-top"><span class="feed-name">' + escapeHtml(f.name) + '</span>';
+      html += '<div class="feed-top"><span class="feed-name-group">' + logoHtml(f.logo, f.domain, f.name, 'sz-28') + '<span class="feed-name">' + escapeHtml(f.name) + '</span></span>';
       if (f.date) html += '<span class="feed-date">' + escapeHtml(f.date) + '</span>';
       html += '</div>';
       if (f.category) html += '<div class="feed-cat">' + escapeHtml(f.category) + '</div>';
@@ -288,8 +324,9 @@ function renderGroups(groups) {
       sub.clients.forEach(function (c) {
         var searchKey = (c.name + ' ' + c.domain).toLowerCase();
         html += '<a class="card" data-search="' + escapeHtml(searchKey) + '" data-client-id="' + escapeHtml(c.id) + '">';
-        html += '<div class="name">' + escapeHtml(c.name) + '</div>';
+        html += '<div class="card-head">' + logoHtml(c.logo, c.domain, c.name, 'sz-32') + '<div class="name">' + escapeHtml(c.name) + '</div></div>';
         html += '<div class="domain">' + escapeHtml(c.domain) + '</div>';
+        if (c.intro) html += '<div class="intro">' + escapeHtml(c.intro) + '</div>';
         if (c.launchDate) html += '<div class="launch">上線日 ' + escapeHtml(c.launchDate) + '</div>';
         html += '</a>';
       });
@@ -412,7 +449,8 @@ function renderReport(data) {
 
   var html = '';
   html += '<a class="back" href="?page=browse">← 所有客戶</a>';
-  html += '<h1>' + escapeHtml(client.name) + '</h1>';
+  html += '<div class="report-head">' + logoHtml(client.logo, client.domain, client.name, 'sz-48') + '<h1>' + escapeHtml(client.name) + '</h1></div>';
+  if (client.intro) html += '<div class="report-intro">' + escapeHtml(client.intro) + '</div>';
   html += '<div class="meta"><span>' + escapeHtml(client.domain) + '</span>';
   if (data.launchDateText) html += '<span>上線日 ' + escapeHtml(data.launchDateText) + '</span>';
   html += '</div>';
