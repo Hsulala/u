@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>常用語錄</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 500px; margin: 0 auto; }
+        h1 { text-align: center; color: #222; font-size: 20px; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+        .tab { flex: 1; padding: 12px; text-align: center; border-radius: 8px; background: #fff; border: 1px solid #ddd; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .tab.active { background: #F39800; color: #fff; border-color: #F39800; }
+        .panel { display: none; background: #fff; border-radius: 8px; padding: 20px; }
+        .panel.active { display: block; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; font-weight: bold; color: #555; font-size: 14px; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+        .radio-row { display: flex; gap: 12px; margin-bottom: 16px; }
+        .radio-row label { display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 14px; }
+        button.generate { width: 100%; padding: 14px; border: none; border-radius: 8px; background: #F39800; color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; }
+        button.generate:disabled { background: #ccc; cursor: not-allowed; }
+        .qa-item { padding: 12px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 8px; cursor: pointer; background: #fafafa; }
+        .qa-item:active { background: #fff3d6; }
+        #resultBox { margin-top: 16px; display: none; }
+        #resultText { width: 100%; min-height: 140px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; box-sizing: border-box; white-space: pre-wrap; }
+        button.copy { width: 100%; padding: 12px; border: 1px solid #F39800; border-radius: 6px; background: #fff; color: #F39800; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+        #statusMsg { text-align: center; margin-top: 12px; font-size: 13px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>常用語錄</h1>
+        <div class="tabs">
+            <div class="tab active" data-panel="payment">匯款</div>
+            <div class="tab" data-panel="meeting">會議</div>
+            <div class="tab" data-panel="qa">常用QA</div>
+        </div>
+
+        <div class="panel active" id="panel-payment">
+            <div class="form-group">
+                <label>類型</label>
+                <select id="paymentKind">
+                    <option value="personal">個人帳號</option>
+                    <option value="company">公司帳號（含發票）</option>
+                    <option value="screenshot">請截圖提醒</option>
+                </select>
+            </div>
+            <div class="form-group" id="amountGroup">
+                <label>金額</label>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="amount" placeholder="例如：5000">
+            </div>
+            <div class="form-group" id="paymentTypeGroup" style="display:none">
+                <label>截圖類型</label>
+                <select id="paymentType">
+                    <option value="匯款">匯款完成</option>
+                    <option value="刷卡">刷卡完成</option>
+                </select>
+            </div>
+            <button type="button" class="generate" id="paymentGenerate">產生文字</button>
+        </div>
+
+        <div class="panel" id="panel-meeting">
+            <div class="form-group">
+                <label>類型</label>
+                <select id="meetingKind">
+                    <option value="reminder">會議前提醒</option>
+                    <option value="thanks">會後感謝</option>
+                </select>
+            </div>
+            <div id="meetingReminderFields">
+                <div class="form-group"><label>對象稱謂/姓名</label><input type="text" id="m_person_name" placeholder="例如：王總"></div>
+                <div class="form-group"><label>日期</label><input type="text" id="m_date" placeholder="例如：8/14"></div>
+                <div class="form-group"><label>星期</label><input type="text" id="m_weekday" placeholder="例如：四"></div>
+                <div class="form-group"><label>時間</label><input type="text" id="m_time" placeholder="例如：10:30"></div>
+                <div class="form-group"><label>地址</label><input type="text" id="m_address" placeholder="拜訪地址"></div>
+                <div class="form-group"><label>聯絡電話</label><input type="text" id="m_phone" placeholder="選填"></div>
+                <div class="form-group"><label>討論主題</label><input type="text" id="m_topics" placeholder="選填"></div>
+            </div>
+            <div id="meetingThanksFields" style="display:none">
+                <div class="form-group"><label>對象人名</label><input type="text" id="m_person_names" placeholder="例如：左老闆和Doris"></div>
+                <div class="form-group"><label>後續事項</label><input type="text" id="m_follow_up" placeholder="選填"></div>
+            </div>
+            <button type="button" class="generate" id="meetingGenerate">產生文字（會呼叫AI，需要幾秒鐘）</button>
+        </div>
+
+        <div class="panel" id="panel-qa">
+            <div id="qaList">載入中...</div>
+        </div>
+
+        <div id="resultBox">
+            <label>產出結果</label>
+            <textarea id="resultText" readonly></textarea>
+            <button type="button" class="copy" id="copyButton">複製</button>
+        </div>
+        <div id="statusMsg"></div>
+    </div>
+
+    <script>
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyxho67YFK74dy5Y76txc3AQ_5JEVLcny7I6-aRNvfLREB9A3ymaS4GSYwm4evPERYxiw/exec";
+        const LIFF_ID = "PUT_YOUR_QUICKREPLY_LIFF_ID_HERE";
+
+        document.addEventListener("DOMContentLoaded", function () {
+            liff.init({ liffId: LIFF_ID }).catch((err) => showStatus("LIFF 初始化失敗：" + err, true));
+
+            document.querySelectorAll(".tab").forEach((tab) => {
+                tab.addEventListener("click", () => switchTab(tab.dataset.panel));
+            });
+
+            document.getElementById("paymentKind").addEventListener("change", updatePaymentFields);
+            document.getElementById("meetingKind").addEventListener("change", updateMeetingFields);
+            document.getElementById("paymentGenerate").addEventListener("click", generatePayment);
+            document.getElementById("meetingGenerate").addEventListener("click", generateMeeting);
+            document.getElementById("copyButton").addEventListener("click", copyResult);
+
+            updatePaymentFields();
+            loadQaList();
+        });
+
+        function switchTab(name) {
+            document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.panel === name));
+            document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === "panel-" + name));
+            hideResult();
+        }
+
+        function updatePaymentFields() {
+            const kind = document.getElementById("paymentKind").value;
+            document.getElementById("amountGroup").style.display = kind === "screenshot" ? "none" : "block";
+            document.getElementById("paymentTypeGroup").style.display = kind === "screenshot" ? "block" : "none";
+        }
+
+        function updateMeetingFields() {
+            const kind = document.getElementById("meetingKind").value;
+            document.getElementById("meetingReminderFields").style.display = kind === "reminder" ? "block" : "none";
+            document.getElementById("meetingThanksFields").style.display = kind === "thanks" ? "block" : "none";
+        }
+
+        async function callBackend(payload) {
+            const res = await fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(Object.assign({ idToken: liff.getIDToken() }, payload)),
+            });
+            return res.json();
+        }
+
+        function showStatus(msg, isError) {
+            const el = document.getElementById("statusMsg");
+            el.textContent = msg;
+            el.style.color = isError ? "#dc3545" : "#666";
+        }
+
+        function showResult(text) {
+            document.getElementById("resultText").value = text;
+            document.getElementById("resultBox").style.display = "block";
+            showStatus("");
+        }
+
+        function hideResult() {
+            document.getElementById("resultBox").style.display = "none";
+        }
+
+        async function generatePayment() {
+            const btn = document.getElementById("paymentGenerate");
+            btn.disabled = true;
+            showStatus("處理中...");
+            try {
+                const kind = document.getElementById("paymentKind").value;
+                const result = await callBackend({
+                    action: "quickReplyPayment",
+                    kind: kind,
+                    amount: document.getElementById("amount").value,
+                    paymentType: document.getElementById("paymentType").value,
+                });
+                if (result.status !== "success") throw new Error(result.message || "產生失敗");
+                showResult(result.text);
+            } catch (err) {
+                showStatus(String(err.message || err), true);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function generateMeeting() {
+            const btn = document.getElementById("meetingGenerate");
+            btn.disabled = true;
+            showStatus("AI 生成中，請稍候...");
+            try {
+                const kind = document.getElementById("meetingKind").value;
+                const entities = kind === "thanks"
+                    ? { person_names: document.getElementById("m_person_names").value, follow_up: document.getElementById("m_follow_up").value }
+                    : {
+                        person_name: document.getElementById("m_person_name").value,
+                        date: document.getElementById("m_date").value,
+                        weekday: document.getElementById("m_weekday").value,
+                        time: document.getElementById("m_time").value,
+                        address: document.getElementById("m_address").value,
+                        phone: document.getElementById("m_phone").value,
+                        topics: document.getElementById("m_topics").value,
+                    };
+                const result = await callBackend({ action: "quickReplyMeeting", kind: kind, entities: entities });
+                if (result.status !== "success") throw new Error(result.message || "產生失敗");
+                showResult(result.text);
+            } catch (err) {
+                showStatus(String(err.message || err), true);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function loadQaList() {
+            const listEl = document.getElementById("qaList");
+            try {
+                const result = await callBackend({ action: "quickReplyQaList" });
+                if (result.status !== "success") throw new Error(result.message || "載入失敗");
+                listEl.innerHTML = "";
+                if (!result.entries || result.entries.length === 0) {
+                    listEl.innerHTML = "<p style='color:#999;font-size:14px;'>目前還沒有常用QA，可以到「問答範本」分頁新增。</p>";
+                    return;
+                }
+                result.entries.forEach((entry) => {
+                    const div = document.createElement("div");
+                    div.className = "qa-item";
+                    div.textContent = entry.label;
+                    div.addEventListener("click", () => showResult(entry.text));
+                    listEl.appendChild(div);
+                });
+            } catch (err) {
+                listEl.innerHTML = "<p style='color:#dc3545;font-size:14px;'>" + String(err.message || err) + "</p>";
+            }
+        }
+
+        function copyResult() {
+            const text = document.getElementById("resultText").value;
+            navigator.clipboard.writeText(text).then(() => showStatus("已複製到剪貼簿")).catch(() => showStatus("複製失敗，請手動選取文字", true));
+        }
+    </script>
+</body>
+</html>
