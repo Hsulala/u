@@ -107,8 +107,14 @@ function setupCardRosterSheet() {
 // Web App 進入點（LIFF 頁面 + API）
 // ============================================================
 function doGet(e) {
-  const page = ((e && e.parameter && e.parameter.page) || "worklog").toLowerCase();
-  const fileMap = { worklog: "liff", card: "card", meeting: "meeting" };
+  const params = (e && e.parameter) || {};
+
+  if (params.action === "ics" && params.eventId) {
+    return getMeetingIcs(params.eventId);
+  }
+
+  const page = (params.page || "worklog").toLowerCase();
+  const fileMap = { worklog: "liff", card: "card", meeting: "meeting", quickreply: "quickreply" };
   const file = fileMap[page] || "liff";
   return HtmlService.createHtmlOutputFromFile(file)
     .setTitle("MaKarma")
@@ -153,6 +159,15 @@ function doPost(e) {
         return jsonOut(upsertMeeting(body, false));
       case "getMyCard":
         return jsonOut(getCardForLineUser(body.idToken));
+      case "quickReplyPayment":
+        requireAuthorizedUser(body.idToken);
+        return jsonOut(quickReplyPayment(body));
+      case "quickReplyMeeting":
+        requireAuthorizedUser(body.idToken);
+        return jsonOut(quickReplyMeeting(body));
+      case "quickReplyQaList":
+        requireAuthorizedUser(body.idToken);
+        return jsonOut({ status: "success", entries: quickReplyQaList() });
       default:
         return jsonOut({ status: "error", message: "未知的 action" });
     }
@@ -556,6 +571,45 @@ function logMeeting(eventId, title, date, startTime, endTime, location, meetingL
   sheet.appendRow([eventId, title, date, startTime, endTime, location, meetingLink, new Date()]);
 }
 
+// 提供 Apple 行事曆（及其他支援 .ics 的行事曆 App）下載會議邀請用
+function getMeetingIcs(eventId) {
+  const event = Calendar.Events.get(SHARED_CALENDAR_ID, eventId);
+  const ics = buildIcsContent(event);
+  return ContentService.createTextOutput(ics).setMimeType(ContentService.MimeType.ICAL);
+}
+
+function buildIcsContent(event) {
+  const escapeText = (s) =>
+    String(s || "")
+      .replace(/\\/g, "\\\\")
+      .replace(/;/g, "\\;")
+      .replace(/,/g, "\\,")
+      .replace(/\n/g, "\\n");
+  const toIcsDate = (dateTimeStr) =>
+    Utilities.formatDate(new Date(dateTimeStr), "UTC", "yyyyMMdd'T'HHmmss'Z'");
+
+  const description = event.hangoutLink ? `會議連結：${event.hangoutLink}` : "";
+
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//MaKarma//Meeting Invite//ZH-TW",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${event.id}@makarma-linebot`,
+    `DTSTAMP:${toIcsDate(new Date().toISOString())}`,
+    `DTSTART:${toIcsDate(event.start.dateTime)}`,
+    `DTEND:${toIcsDate(event.end.dateTime)}`,
+    `SUMMARY:${escapeText(event.summary)}`,
+  ];
+  if (event.location) lines.push(`LOCATION:${escapeText(event.location)}`);
+  if (description) lines.push(`DESCRIPTION:${escapeText(description)}`);
+  lines.push("END:VEVENT", "END:VCALENDAR");
+
+  return lines.join("\r\n");
+}
+
 function searchMeetings(keyword) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(MEETING_SHEET);
@@ -871,6 +925,47 @@ function notifyUserApproved(userId) {
   });
 }
 
+// 診斷用：在編輯器裡直接執行，看「執行記錄」的 Log 輸出，確認目前帳號底下有哪些圖文選單、
+// 各自的 richMenuId 是什麼。用 LINE Official Account Manager 手動做好選單後，
+// 要靠這個函式才能拿到 ID（manager.line.biz 網頁上不會直接顯示 richMenuId）。
+function listRichMenus() {
+  const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
+  if (!token) {
+    Logger.log("尚未設定 LINE_CHANNEL_ACCESS_TOKEN");
+    return;
+  }
+  const resp = UrlFetchApp.fetch("https://api.line.me/v2/bot/richmenu/list", {
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
+  });
+  const result = JSON.parse(resp.getContentText());
+  (result.richmenus || []).forEach((menu) => {
+    Logger.log(`名稱：${menu.name}　richMenuId：${menu.richMenuId}　選單文字：${menu.chatBarText}`);
+  });
+  if (!result.richmenus || result.richmenus.length === 0) {
+    Logger.log("這個帳號底下目前沒有任何圖文選單，回應內容：" + resp.getContentText());
+  }
+}
+
+// 診斷用：查目前設定給「所有尚未被個別綁定選單的使用者」看的預設圖文選單是哪一個
+// （在 LINE Official Account Manager 把某個選單設成「已套用到所有使用者」時，就是設這個）
+function getDefaultRichMenu() {
+  const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
+  if (!token) {
+    Logger.log("尚未設定 LINE_CHANNEL_ACCESS_TOKEN");
+    return;
+  }
+  const resp = UrlFetchApp.fetch("https://api.line.me/v2/bot/user/all/richmenu", {
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
+  });
+  if (resp.getResponseCode() === 200) {
+    Logger.log("目前預設選單 richMenuId：" + JSON.parse(resp.getContentText()).richMenuId);
+  } else {
+    Logger.log("目前沒有設定預設選單（HTTP " + resp.getResponseCode() + "）：" + resp.getContentText());
+  }
+}
+
 // 在編輯器裡手動執行一次即可（會要求授權），之後管理員在 Sheet 上核准就會自動生效
 function setupBindApprovalTrigger() {
   ScriptApp.getProjectTriggers().forEach((t) => {
@@ -1060,6 +1155,58 @@ function generateReplyText(message) {
   }
 }
 
+// ============================================================
+// 常用語錄 LIFF：點選式產生文字，不經過 AI 分類（省成本、結果固定）
+// ============================================================
+function quickReplyPayment(body) {
+  const templates = loadTemplatesData().templates;
+  const kind = body.kind;
+
+  if (kind === "personal" || kind === "company") {
+    const template = templates[kind === "personal" ? "payment_personal" : "payment_company"] || "";
+    const amount = Number(body.amount) || 0;
+    return { status: "success", text: fillTemplate(template, { amount: amount.toLocaleString("en-US") }) };
+  }
+  if (kind === "screenshot") {
+    const template = templates["payment_screenshot"] || "";
+    return { status: "success", text: fillTemplate(template, { payment_type: body.paymentType || "匯款" }) };
+  }
+  return { status: "error", message: "未知的匯款類型" };
+}
+
+// 會議前提醒/會後感謝仍然用 AI 生成（保留自然語氣），只是資訊來源改成表單欄位，不再靠 AI 從一句話裡分類/擷取
+function quickReplyMeeting(body) {
+  const templates = loadTemplatesData().templates;
+  const intent = body.kind === "thanks" ? "meeting_thanks" : "meeting_reminder";
+  const template = templates[intent] || "";
+  const text = generateMeetingMessage(template, body.entities || {}, "");
+  return { status: "success", text: text };
+}
+
+// 列出「問答範本」裡 intent 以 qa_ 開頭的列（跟聊天用的關鍵字比對共用同一份資料）
+function quickReplyQaList() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(QA_SHEET);
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  const header = data[0];
+  const intentCol = header.indexOf("intent");
+  const templateCol = header.indexOf("template");
+  const keywordsCol = header.indexOf("keywords");
+
+  const entries = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const intent = String(row[intentCol] || "").trim();
+    const template = String(row[templateCol] || "").trim();
+    if (intent.indexOf("qa_") !== 0 || !template) continue;
+
+    const keywordsRaw = keywordsCol !== -1 ? String(row[keywordsCol] || "").trim() : "";
+    const firstKeyword = keywordsRaw.split(",")[0].trim();
+    entries.push({ label: firstKeyword || intent, text: template });
+  }
+  return entries;
+}
+
 function replyMenu(replyToken, token) {
   const baseUrl = ScriptApp.getService().getUrl(); // 這個 Web App 目前部署的網址
   const liffUrl = (liffId) => `https://liff.line.me/${liffId}`;
@@ -1082,13 +1229,6 @@ function replyMenu(replyToken, token) {
         layout: "vertical",
         spacing: "sm",
         contents: [
-          {
-            type: "button",
-            style: "primary",
-            height: "sm",
-            color: "#FFA000",
-            action: { type: "uri", label: "工作日誌", uri: liffUrl(LIFF_ID_WORKLOG) },
-          },
           {
             type: "button",
             style: "primary",

@@ -213,8 +213,8 @@
                 const location = document.getElementById('location').value.trim();
 
                 const startDateTime = new Date(`${date}T${startTime}`);
-                startDateTime.setMinutes(startDateTime.getMinutes() + duration);
-                const endTime = ('0' + startDateTime.getHours()).slice(-2) + ':' + ('0' + startDateTime.getMinutes()).slice(-2);
+                const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
+                const endTime = ('0' + endDateTime.getHours()).slice(-2) + ':' + ('0' + endDateTime.getMinutes()).slice(-2);
 
                 if (!title || !date || !startTime) throw new Error("請填寫主旨、日期與時間！");
 
@@ -230,6 +230,7 @@
                 if (result.status !== 'success') throw new Error(`後端處理失敗: ${result.message}`);
 
                 const meetingLink = result.meetingLink;
+                const finalEventId = result.eventId;
                 const isUpdate = currentMode === "update";
 
                 if (!liff.isApiAvailable('shareTargetPicker')) throw new Error('您的 LINE 版本不支援分享功能。');
@@ -260,6 +261,21 @@
                         { "type": "text", "text": location, "color": "#666666", "size": "sm", "flex": 5, "wrap": true }
                     ]});
                 }
+
+                const toGCalUTC = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                const gcalDetails = meetingLink ? `會議連結：${meetingLink}` : '';
+                const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE`
+                    + `&text=${encodeURIComponent(title)}`
+                    + `&dates=${toGCalUTC(startDateTime)}/${toGCalUTC(endDateTime)}`
+                    + `&details=${encodeURIComponent(gcalDetails)}`
+                    + `&location=${encodeURIComponent(location)}`
+                    + `&ctz=Asia%2FTaipei`;
+                const appleCalUrl = `${gasWebAppUrl}?action=ics&eventId=${encodeURIComponent(finalEventId)}`;
+
+                footerContents.push(
+                    { "type": "button", "style": "secondary", "action": { "type": "uri", "label": "加入 Google 日曆", "uri": googleCalUrl } },
+                    { "type": "button", "style": "secondary", "action": { "type": "uri", "label": "加入 Apple 行事曆", "uri": appleCalUrl } }
+                );
 
                 const flexMessage = {
                     "type": "flex", "altText": `${isUpdate ? '會議異動通知' : '會議邀請'}：${title}`, "contents": {
