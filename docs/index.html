@@ -3,161 +3,62 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>MaKarma 成效展示</title>
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png">
-<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png">
+<title>MaKarma｜客戶成效展示</title>
+<meta name="description" content="跨產業客戶案例，從搜尋曝光、自然點擊，到詢問、訂單與品牌成長，完整呈現每個客戶的成效軌跡。">
+<meta name="theme-color" content="#302720">
+<link rel="icon" type="image/png" href="assets/makarma-symbol-bold.png">
+<link rel="apple-touch-icon" href="assets/makarma-symbol-bold.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="strengths.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
-  :root {
-    --primary-color: #C57824; --background-color: #F7F5F1; --text-color: #302720;
-    --card-bg: #ffffff; --border-color: #E1DCD1; --green: #256245; --ink: #302720;
-  }
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; background-color: var(--background-color); color: var(--text-color); }
-  .container { max-width: 680px; margin: 0 auto; padding: 20px; }
+  /* 這裡只放「我們自己的報告頁」（同事沒追蹤的客戶，退回顯示這個）用到的樣式；
+     首頁／有完整故事資料的客戶頁版型，樣式全部來自同事那份 style.css/strengths.css。 */
+  :root { --primary-color: #C57824; --green: #256245; }
+  .container { max-width: 720px; margin: 0 auto; }
+  .meta { color: #888; font-size: 0.9em; margin: 10px 0 20px; }
+  .meta span { margin-right: 14px; }
+  .report-head { display: flex; align-items: center; gap: 14px; margin: 10px 0 4px; }
+  .report-intro { color: #6b6055; font-size: 0.95em; line-height: 1.6; margin: 0 0 6px; }
 
-  /* 兩欄外殼：桌面版左側常駐側邊欄（分類導覽），手機版退回原本的頂部深色列 */
-  .shell { display: flex; align-items: flex-start; min-height: 100vh; }
-  .main { flex: 1; min-width: 0; }
-  .sidebar { display: none; }
-  @media (min-width: 900px) {
-    .sidebar {
-      display: block; width: 250px; flex-shrink: 0; background: var(--ink); color: #F9F3E9;
-      min-height: 100vh; position: sticky; top: 0; align-self: flex-start; padding: 26px 20px;
-    }
-    .topbar { display: none; }
-    .container { padding: 32px 28px; max-width: 760px; }
-  }
-  .sidebar-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
-  .sidebar-logo { width: 34px; height: 34px; border-radius: 8px; }
-  .sidebar-brand-name { font-weight: 800; }
-  .sidebar-brand-sub { font-size: 0.72em; color: #C9BBA6; }
-  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; margin-bottom: 26px; }
-  .sidebar-nav a { color: #E5DCCB; text-decoration: none; font-size: 0.92em; padding: 9px 12px; border-radius: 8px; }
-  .sidebar-nav a.active { background: var(--primary-color); color: #fff; font-weight: bold; }
-  .sidebar-nav a:hover:not(.active) { background: rgba(255,255,255,0.06); }
-  .sidebar-section-label { font-size: 0.7em; letter-spacing: 0.08em; color: #8b7a66; margin: 0 0 8px 12px; }
-  .sidebar-categories { display: flex; flex-direction: column; gap: 1px; }
-  .sidebar-categories a { display: flex; justify-content: space-between; gap: 8px; color: #C9BBA6; text-decoration: none; font-size: 0.85em; padding: 8px 12px; border-radius: 8px; }
-  .sidebar-categories a:hover { background: rgba(255,255,255,0.06); color: #F9F3E9; }
-  .sidebar-categories a .count { color: #8b7a66; }
-
-  .topbar { background: var(--ink); padding: 14px 20px; }
-  .topbar-inner { max-width: 680px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
-  .brand { color: #F9F3E9; font-weight: 800; font-size: 1.05em; }
-  .brand .sub { color: #C9BBA6; font-weight: normal; font-size: 0.75em; margin-left: 6px; }
-  .tabs { display: flex; gap: 6px; }
-  .tab { color: #E5DCCB; text-decoration: none; font-size: 0.82em; padding: 6px 12px; border-radius: 999px; }
-  .tab.active { background: var(--primary-color); color: #fff; font-weight: bold; }
-
-  /* 總覽頁 */
-  .hero { padding: 6px 0 24px; }
-  .hero-eyebrow { font-size: 0.75em; letter-spacing: 0.1em; color: var(--primary-color); font-weight: bold; margin-bottom: 8px; }
-  .hero h1 { text-align: left; font-size: 1.7em; line-height: 1.35; margin: 0 0 10px; }
-  .hero h1 .hl { color: var(--primary-color); }
-  .hero-desc { color: #6b6055; font-size: 0.92em; line-height: 1.6; margin-bottom: 16px; }
-  .hero-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: var(--card-bg); border-radius: 14px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-  .hero-stats .box { text-align: center; }
-  .hero-stats .num { font-size: 2em; font-weight: 800; color: var(--ink); }
-  .hero-stats .label { font-size: 0.78em; color: #8b7a66; margin-top: 2px; }
-  .hero-stats .box.live { grid-column: 1 / -1; border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 4px; }
-  .hero-stats .box.live .num { font-size: 1.5em; color: var(--primary-color); }
-  .live-badge { display: inline-block; background: var(--green); color: #fff; font-size: 0.62em; font-weight: bold; padding: 2px 7px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
-  .feed-item .feed-live { font-size: 0.8em; color: var(--green); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color); }
-  .browse-link { display: block; text-align: center; background: var(--ink); color: #F9F3E9; text-decoration: none; border-radius: 10px; padding: 14px; margin: 20px 0 28px; font-weight: bold; }
-  .feed-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; text-decoration: none; display: block; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 4px solid var(--primary-color); }
-  .feed-item .feed-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; }
-  .feed-item .feed-name { font-weight: 800; font-size: 1.08em; color: var(--ink); }
-  .feed-item .feed-date { font-size: 0.72em; color: #a89985; white-space: nowrap; margin-left: 8px; }
-  .feed-item .feed-cat { font-size: 0.72em; color: #a89985; margin-bottom: 8px; }
-  .feed-item .feed-headline { font-size: 0.9em; line-height: 1.5; color: #55483c; margin-bottom: 6px; }
-  .feed-item .feed-value { color: var(--primary-color); font-weight: 800; font-size: 1em; }
-
-  /* 精選案例（總覽頁最上面，同事那頁「5大特色」風格的手工精選區塊，讀「首頁精選(手動)」分頁） */
-  .featured-grid { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 26px; }
-  .featured-card { display: flex; gap: 14px; align-items: flex-start; background: var(--card-bg); border-radius: 12px; padding: 16px 18px; text-decoration: none; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-  .featured-num { font-size: 1.5em; font-weight: 800; color: var(--primary-color); opacity: 0.45; flex-shrink: 0; width: 30px; line-height: 1.3; }
-  .featured-body { min-width: 0; }
-  .featured-title { font-weight: 700; line-height: 1.55; margin-bottom: 8px; }
-  .featured-sub { display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: #6b6055; }
-
-  /* 品牌小 logo：優先真實 logo，沒有退回 favicon，再沒有退回名稱字首佔位圖 */
-  .logo-wrap { position: relative; display: inline-block; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid var(--border-color); flex-shrink: 0; }
+  .logo-wrap { position: relative; display: inline-block; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid #e6dfd3; flex-shrink: 0; }
   .logo-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 15%; background: #fff; }
   .logo-wrap .fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-color); background: linear-gradient(135deg, #fff, #f3ede2); }
-  .logo-wrap.sz-28 { width: 28px; height: 28px; }
-  .logo-wrap.sz-28 .fallback { font-size: 0.8em; }
-  .logo-wrap.sz-32 { width: 32px; height: 32px; }
-  .logo-wrap.sz-32 .fallback { font-size: 0.85em; }
   .logo-wrap.sz-48 { width: 48px; height: 48px; border-radius: 12px; }
   .logo-wrap.sz-48 .fallback { font-size: 1.2em; }
-  .feed-name-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .feed-name-group .feed-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .report-head { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 10px 0 4px; }
-  .report-head h1 { margin: 0; text-align: left; }
-  .report-intro { text-align: center; color: #6b6055; font-size: 0.9em; line-height: 1.6; margin: 0 0 6px; }
 
-  /* 客戶回饋／搜尋成果一類的小標籤，跟 AI 曝光/AI 摘要徽章、代表關鍵字＋搜尋量小標籤 */
   .kind-badge { display: inline-block; font-size: 0.72em; font-weight: 700; color: var(--primary-color); margin-bottom: 4px; }
   .kw-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
-  .kw-chip { background: #fff7ec; border: 1px solid var(--border-color); border-radius: 999px; padding: 5px 12px; font-size: 0.78em; color: #55483c; }
+  .kw-chip { background: #fff7ec; border: 1px solid #e6dfd3; border-radius: 999px; padding: 5px 12px; font-size: 0.78em; color: #55483c; }
   .kw-chip b { color: var(--primary-color); margin-left: 6px; font-weight: 700; }
   .badge { display: inline-block; font-size: 0.68em; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: #f0ece3; color: #8b7a66; }
   .badge-ai { background: linear-gradient(135deg, #7c3aed, #c026d3); color: #fff; }
 
-  /* 清單頁 */
-  h1 { text-align: center; font-size: 1.4em; margin: 10px 0 4px; }
-  .subtitle { text-align: center; color: #888; font-size: 0.9em; margin-bottom: 20px; }
-  #search { width: 100%; padding: 14px 16px; font-size: 1em; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 14px; }
-  .jump-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 22px; }
-  .jump-chip { font-size: 0.8em; background: #fff; border: 1px solid var(--border-color); border-radius: 999px; padding: 6px 12px; color: var(--text-color); text-decoration: none; cursor: pointer; }
-  .category-section { margin-bottom: 26px; scroll-margin-top: 16px; }
-  .category-title { font-size: 1.15em; font-weight: bold; border-left: 4px solid var(--primary-color); padding-left: 10px; margin-bottom: 10px; }
-  .sub-title { font-size: 0.85em; color: #999; margin: 14px 0 8px 2px; }
-  .card { display: block; background: var(--card-bg); border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; text-decoration: none; color: var(--text-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid var(--primary-color); cursor: pointer; }
-  .card-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 2px; }
-  .card-head-text { min-width: 0; }
-  .card .name { font-size: 1.1em; font-weight: bold; }
-  .card .domain { color: #999; font-size: 0.85em; margin-top: 4px; }
-  .card .intro { color: #6b6055; font-size: 0.85em; margin-top: 6px; line-height: 1.5; }
-  .card .launch { color: var(--primary-color); font-size: 0.8em; margin-top: 8px; }
-  .card-stat { margin: 2px 0 2px; }
-  .card-stat-value { font-size: 1.25em; font-weight: 800; color: var(--primary-color); }
-  .card-stat-unit { font-size: 0.78em; color: #8b7a66; margin-left: 6px; }
-  #empty { text-align: center; color: #999; padding: 40px 0; display: none; }
-
-  /* 報告頁 */
-  a.back { color: var(--primary-color); text-decoration: none; font-size: 0.9em; }
-  .meta { color: #888; font-size: 0.9em; margin: 10px 0 20px; }
-  .meta span { margin-right: 14px; }
-  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
-  .stat-card { background: var(--card-bg); border-radius: 12px; padding: 18px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: #fff; border-radius: 12px; padding: 18px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
   .stat-card .value { font-size: 1.9em; font-weight: 800; color: var(--primary-color); line-height: 1.1; }
   .stat-card .label { color: #888; font-size: 0.85em; margin-top: 4px; }
-  section { margin-bottom: 28px; }
-  h2 { font-size: 1.1em; border-left: 4px solid var(--primary-color); padding-left: 10px; margin-bottom: 12px; }
-  .chart-card { background: var(--card-bg); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .chart-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
   .compare-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
-  .compare-col { background: var(--card-bg); border-radius: 12px; padding: 16px; text-align: center; }
+  .compare-col { background: #fff; border-radius: 12px; padding: 16px; text-align: center; }
   .compare-col .tag { font-size: 0.8em; color: #999; }
   .compare-col .num { font-size: 1.3em; font-weight: bold; margin-top: 4px; }
   .compare-arrow { font-size: 1.5em; color: var(--primary-color); text-align: center; }
   .compare-col.after .num { color: var(--green); }
-  .article-card { background: var(--card-bg); border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-  .article-card .title { font-weight: bold; margin-bottom: 6px; display: block; color: var(--text-color); text-decoration: none; }
+  .article-card { background: #fff; border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .article-card .title { font-weight: bold; margin-bottom: 6px; display: block; color: inherit; text-decoration: none; }
   a.article-card .title:hover, .article-card a.title:hover { color: var(--primary-color); }
   .article-card .pub { color: #999; font-size: 0.8em; margin-bottom: 10px; }
   .article-stats { display: flex; gap: 16px; font-size: 0.9em; margin-bottom: 8px; }
   .article-stats b { color: var(--primary-color); }
-  .keywords { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px; }
+  .keywords { margin-top: 10px; border-top: 1px solid #e6dfd3; padding-top: 8px; }
   .keywords .heading { font-size: 0.75em; color: #aaa; margin-bottom: 4px; }
   .keyword-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85em; padding: 3px 0; }
   .keyword-row .query { color: #555; }
   .keyword-row .clicks { color: var(--primary-color); font-weight: bold; white-space: nowrap; margin-left: 10px; }
   .highlight { background: #fff7ec; border-left: 4px solid var(--primary-color); border-radius: 12px; padding: 16px 18px; white-space: pre-wrap; line-height: 1.6; }
 
-  /* 客戶故事卡 */
-  .story-card { background: var(--card-bg); border-radius: 14px; padding: 22px 20px; margin-bottom: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); border-top: 5px solid var(--story-accent, var(--primary-color)); }
+  .story-card { background: #fff; border-radius: 14px; padding: 22px 20px; margin-bottom: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); border-top: 5px solid var(--story-accent, var(--primary-color)); }
   .story-kind { font-size: 0.75em; color: var(--story-accent, var(--primary-color)); font-weight: bold; letter-spacing: 0.05em; margin-bottom: 6px; }
   .story-headline { font-size: 1.3em; font-weight: 800; line-height: 1.4; margin-bottom: 16px; }
   .story-standalone-stat { margin: -8px 0 14px; }
@@ -174,62 +75,50 @@
   .story-business li { padding: 6px 0 6px 22px; position: relative; font-size: 0.92em; line-height: 1.5; }
   .story-business li::before { content: "✓"; position: absolute; left: 0; color: var(--story-accent, var(--primary-color)); font-weight: bold; }
   .story-quote { background: #f9f9f9; border-left: 4px solid var(--story-accent, var(--primary-color)); border-radius: 10px; padding: 14px 16px; font-size: 0.9em; line-height: 1.6; color: #555; margin-bottom: 16px; }
-  .story-milestones { border-top: 1px solid var(--border-color); padding-top: 12px; }
+  .story-milestones { border-top: 1px solid #e6dfd3; padding-top: 12px; }
   .story-milestones .heading { font-size: 0.75em; color: #aaa; margin-bottom: 8px; }
   .milestone-row { display: flex; gap: 10px; font-size: 0.85em; padding: 4px 0; }
   .milestone-row .date { color: #999; white-space: nowrap; }
   .milestone-row .text { color: #444; }
 
-  /* 時間軸卡片、章節跳轉、長文介紹、關鍵字/AI亮點 */
-  .timeline-card { background: var(--card-bg); border-radius: 14px; padding: 20px; margin: 0 0 22px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-  .timeline-card .big-num { font-size: 2.1em; font-weight: 800; color: var(--ink); }
+  .timeline-card { background: #fff; border-radius: 14px; padding: 20px; margin: 0 0 22px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+  .timeline-card .big-num { font-size: 2.1em; font-weight: 800; }
   .timeline-card .big-num .unit { font-size: 0.42em; font-weight: bold; color: #8b7a66; margin-left: 6px; }
   .timeline-card .sub { color: #6b6055; font-size: 0.88em; margin-top: 8px; line-height: 1.6; }
   .section-jump { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
-  .prose { background: var(--card-bg); border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); line-height: 1.8; font-size: 0.92em; color: #444; white-space: pre-wrap; }
+  .jump-chip { font-size: 0.8em; background: #fff; border: 1px solid #e6dfd3; border-radius: 999px; padding: 6px 12px; color: inherit; text-decoration: none; }
+  .prose { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); line-height: 1.8; font-size: 0.92em; color: #444; white-space: pre-wrap; }
   .keyword-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .keyword-chip { background: var(--card-bg); border-radius: 999px; padding: 8px 14px; font-size: 0.85em; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+  .keyword-chip { background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 0.85em; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
   .keyword-chip b { color: var(--primary-color); margin-left: 4px; }
-  .ai-highlights { list-style: none; padding: 0; margin: 0; background: var(--card-bg); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
-  .ai-highlights li { padding: 14px 16px 14px 40px; border-bottom: 1px solid var(--border-color); font-size: 0.92em; line-height: 1.5; position: relative; }
+  .ai-highlights { list-style: none; padding: 0; margin: 0; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
+  .ai-highlights li { padding: 14px 16px 14px 40px; border-bottom: 1px solid #e6dfd3; font-size: 0.92em; line-height: 1.5; position: relative; }
   .ai-highlights li:last-child { border-bottom: none; }
   .ai-highlights li::before { content: "✨"; position: absolute; left: 14px; }
-
-  footer { text-align: center; color: #bbb; font-size: 0.75em; margin-top: 30px; }
   .loading, .error { text-align: center; color: #999; padding: 60px 0; }
 </style>
 </head>
 <body>
-<div class="shell">
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <img class="sidebar-logo" src="https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png" alt="">
-      <div>
-        <div class="sidebar-brand-name">MaKarma</div>
-        <div class="sidebar-brand-sub">SEO 成效戰情室</div>
-      </div>
-    </div>
-    <nav class="sidebar-nav">
-      <a id="nav-overview" href="?page=overview">成效總覽</a>
-      <a id="nav-browse" href="?page=browse">客戶列表</a>
-    </nav>
-    <div class="sidebar-section-label" id="sidebarCatLabel" style="display:none;">依產業瀏覽</div>
-    <div class="sidebar-categories" id="sidebarCategories"></div>
-  </aside>
-  <div class="main">
-    <div class="topbar">
-      <div class="topbar-inner">
-        <div class="brand">MaKarma <span class="sub">SEO 成效戰情室</span></div>
-        <div class="tabs">
-          <a class="tab" id="tab-overview" href="?page=overview">總覽</a>
-          <a class="tab" id="tab-browse" href="?page=browse">客戶列表</a>
-        </div>
-      </div>
-    </div>
-    <div class="container" id="app">
-      <div class="loading">載入中...</div>
-    </div>
-  </div>
+<a class="skip" href="#main">跳到主要內容</a>
+<aside class="sidebar" aria-label="章節導覽">
+<a href="?" class="brand"><span class="brand-icon"><img src="assets/makarma-symbol-bold.png" width="44" height="44" alt="MaKarma LOGO"></span><span>MaKarma<small>瑪卡鎷網路行銷</small></span></a>
+<div class="side-title">客戶成效戰情室<span>CLIENT GROWTH ROOM</span></div>
+<nav><a class="nav-link active" href="#overview"><span>◈</span> 成效總覽</a><p class="nav-label">依產業看案例</p><div id="industry-nav"></div></nav>
+<div class="side-bottom"><span class="side-rule"></span><strong>每個數字背後，<br>都有一門正在成長的生意。</strong><small>SEO · 內容行銷 · 整合行銷</small></div>
+</aside>
+<div class="page">
+<header class="topbar"><a class="mobile-brand" href="?">MaKarma<span>成效戰情室</span></a><span class="breadcrumb">MaKarma <span>/</span> 客戶成效</span><div class="edition"><span>CASEBOOK</span> 即時串接 GSC</div></header>
+<main id="main">
+<section class="five-strengths" aria-labelledby="strengths-title">
+<div class="strengths-heading"><p class="eyebrow">WHY MAKARMA / 5 大特色</p><h2 id="strengths-title">用數據說話，<br>陪每個客戶一起成長。</h2><p>從 <span data-client-count>—</span> 個合作品牌中，看見搜尋如何連結生意。</p></div>
+<p class="strengths-note">點選下方任一客戶卡片，可查看日期與完整成效說明；同一批案例每天自動同步最新 Google Search Console 數據。</p>
+</section>
+<section id="overview" class="overview">
+<div class="intro"><div><p class="eyebrow">REAL BRANDS. REAL PROGRESS.</p><h1>把被看見，<br>變成<span>被選擇。</span></h1><p class="intro-copy">從 Google 上的一次搜尋，<br class="desktop-break">到 1 通詢問、1 筆訂單，以及品牌的下一步。</p></div><div class="overview-count"><div class="count-top"><span>這些客戶，都跟我們一起做過</span><span class="little-star">✦</span></div><div class="big-count">—<span>合作品牌</span></div><div class="count-divider"></div><div class="count-splits"><div><b>—</b><span>產業領域</span></div><div><b>SEO</b><span>讓客人搜尋找得到</span></div></div><p>從在地服務到企業採購，<br>讓有需要的客人，找得到你。</p></div></div>
+</section>
+<section class="catalog"><div class="section-top"><div><p class="eyebrow">THE CLIENT CASEBOOK</p><h2>你的產業，可以怎麼做？</h2></div><span class="date-pill">合作品牌</span></div><p class="catalog-intro">先看跟你相近的客戶：原本遇到什麼問題，後來生意有什麼變化。</p><section id="ranking-overview" class="ranking-overview" aria-label="關鍵字排名總覽"></section><div id="industry-index" class="industry-index"></div><div id="cases"><p class="loading">正在載入案例…</p></div><noscript><p>請啟用 JavaScript，以閱讀完整客戶成效。</p></noscript></section>
+<footer><span class="footer-brand">MaKarma<span>瑪卡鎷網路行銷</span></span><p>先把客人會問的問題說清楚，<br>讓他有需要時，找得到你。</p><a href="#overview">回到總覽 ↑</a><small>資料每日自動同步 Google Search Console</small></footer>
+</main>
 </div>
 
 <script>
@@ -284,9 +173,9 @@ function fmt(n) {
   return Number(n || 0).toLocaleString('en-US');
 }
 
-// 品牌小 logo：優先用客戶自己的品牌 logo（同事那份資料同步來的，或「客戶介紹(手動)」
-// 自己填的網址），沒有的話退回借用客戶網站的 favicon，兩者都沒有才用名稱字首當佔位圖，
-// 版面不會因為圖片載入失敗而空一塊。
+// 品牌小 logo：優先用客戶自己的品牌 logo，沒有的話退回借用客戶網站的 favicon，
+// 兩者都沒有才用名稱字首當佔位圖，只給「我們自己的報告頁」（renderReport）用；
+// 同事那套版型（casebook.js）的卡片/客戶頁有自己一套 logo 顯示邏輯，不會用到這個。
 function logoHtml(logoUrl, domain, name, sizeClass) {
   var initials = escapeHtml((name || '?').trim().charAt(0).toUpperCase());
   var host = domain ? String(domain).split(',')[0].trim() : '';
@@ -300,7 +189,7 @@ function logoHtml(logoUrl, domain, name, sizeClass) {
   return html;
 }
 
-// 代表關鍵字＋月搜尋量／AI曝光／AI摘要小標籤列，清單卡片跟報告頁的故事卡都會用到
+// 代表關鍵字＋月搜尋量／AI曝光／AI摘要小標籤列
 function keywordBadgeRow(story) {
   if (!story || !story.repKeyword) return '';
   var html = '<div class="kw-row">';
@@ -314,212 +203,14 @@ function keywordBadgeRow(story) {
   return html;
 }
 
-var app = document.getElementById("app");
-
 function showError(message) {
-  app.innerHTML = '<div class="error">' + escapeHtml(message) +
-    '<div style="margin-top:14px;"><button id="retryBtn" style="padding:10px 20px;border-radius:8px;border:1px solid var(--border-color);background:#fff;cursor:pointer;">重新載入</button></div></div>';
+  document.getElementById('main').innerHTML = '<div class="container"><div class="error">' + escapeHtml(message) +
+    '<div style="margin-top:14px;"><button id="retryBtn" style="padding:10px 20px;border-radius:8px;border:1px solid #e6dfd3;background:#fff;cursor:pointer;">重新載入</button></div></div></div>';
   var btn = document.getElementById('retryBtn');
   if (btn) btn.addEventListener('click', route);
 }
 
-// ---------- 側邊欄分類導覽（桌面版常駐顯示，跟清單頁共用同一份「客戶列表」資料，不重複打 API） ----------
-
-var categoryCache = null;
-var categoryFetchPromise = null;
-
-function fetchCategories_() {
-  if (categoryCache) return Promise.resolve(categoryCache);
-  if (!categoryFetchPromise) {
-    categoryFetchPromise = jsonpWithRetry(API_BASE + "?api=list").then(function (data) {
-      categoryCache = data.groups || [];
-      return categoryCache;
-    });
-  }
-  return categoryFetchPromise;
-}
-
-function renderSidebarCategories(groups) {
-  var el = document.getElementById('sidebarCategories');
-  var label = document.getElementById('sidebarCatLabel');
-  if (!el) return;
-  if (!groups || groups.length === 0) {
-    el.innerHTML = '';
-    if (label) label.style.display = 'none';
-    return;
-  }
-  if (label) label.style.display = '';
-  var html = '';
-  groups.forEach(function (g, i) {
-    var count = g.subGroups.reduce(function (s, sub) { return s + sub.clients.length; }, 0);
-    html += '<a href="?page=browse#cat-' + i + '"><span>' + escapeHtml(g.category) + '</span><span class="count">' + count + '</span></a>';
-  });
-  el.innerHTML = html;
-}
-
-function ensureSidebarCategories() {
-  fetchCategories_().then(renderSidebarCategories).catch(function () { /* 側邊欄抓不到就先不顯示，不影響主要內容 */ });
-}
-
-// ---------- 總覽頁 ----------
-
-function renderOverviewPage() {
-  jsonpWithRetry(API_BASE + "?api=overview").then(function (data) {
-    renderOverview(data);
-  }).catch(function (err) {
-    showError("載入總覽失敗：" + err.message);
-  });
-}
-
-function renderOverview(data) {
-  var feed = data.feed || [];
-  var featured = data.featured || [];
-  var html = '';
-
-  html += '<div class="hero">';
-  html += '<div class="hero-eyebrow">MAKARMA SEO 成效戰情室</div>';
-  html += '<h1>用<span class="hl">數據</span>說話，<br>陪每個客戶一起成長</h1>';
-  html += '<div class="hero-desc">即時串接 Google Search Console 數據，加上業績成長、客戶回饋等第一線故事，完整呈現每個客戶的成效軌跡。</div>';
-  html += '<div class="hero-stats">';
-  html += '<div class="box"><div class="num">' + fmt(data.clientCount) + '</div><div class="label">服務客戶數</div></div>';
-  html += '<div class="box"><div class="num">' + fmt(data.categoryCount) + '</div><div class="label">產業類別</div></div>';
-  if (data.recentClicks || data.recentImpressions) {
-    html += '<div class="box live"><div class="num">' + fmt(data.recentClicks) + '</div><div class="label">近期自然點擊加總<span class="live-badge">即時</span></div></div>';
-  }
-  html += '</div>';
-  html += '</div>';
-
-  if (featured.length > 0) {
-    html += '<h2>精選案例</h2>';
-    html += '<div class="featured-grid">';
-    featured.forEach(function (f, i) {
-      html += '<a class="featured-card" href="?client=' + encodeURIComponent(f.clientId) + '">';
-      html += '<div class="featured-num">' + String(i + 1).padStart(2, '0') + '</div>';
-      html += '<div class="featured-body">';
-      html += '<div class="featured-title">' + escapeHtml(f.title) + '</div>';
-      html += '<div class="featured-sub">' + logoHtml(f.logo, f.domain, f.name, 'sz-28') + '<span>' + escapeHtml(f.name) + (f.subtitle ? '｜' + escapeHtml(f.subtitle) : '') + '</span></div>';
-      html += '</div>';
-      html += '</a>';
-    });
-    html += '</div>';
-  }
-
-  html += '<a class="browse-link" href="?page=browse">瀏覽所有客戶成效 →</a>';
-
-  if (feed.length > 0) {
-    html += '<h2>最新成效動態</h2>';
-    feed.forEach(function (f) {
-      html += '<a class="feed-item" href="?client=' + encodeURIComponent(f.clientId) + '">';
-      html += '<div class="feed-top"><span class="feed-name-group">' + logoHtml(f.logo, f.domain, f.name, 'sz-28') + '<span class="feed-name">' + escapeHtml(f.name) + '</span></span>';
-      if (f.date) html += '<span class="feed-date">' + escapeHtml(f.date) + '</span>';
-      html += '</div>';
-      if (f.category) html += '<div class="feed-cat">' + escapeHtml(f.category) + '</div>';
-      if (f.headline) html += '<div class="feed-headline">' + escapeHtml(f.headline) + '</div>';
-      if (f.value) html += '<div class="feed-value">' + escapeHtml(f.value) + (f.unit ? ' ' + escapeHtml(f.unit) : '') + '</div>';
-      if (f.liveClicks != null) {
-        html += '<div class="feed-live">' + escapeHtml(f.liveMonth) + ' 自然點擊 ' + fmt(f.liveClicks) + '・曝光 ' + fmt(f.liveImpressions) + '<span class="live-badge">即時</span></div>';
-      }
-      html += '</a>';
-    });
-  }
-
-  html += '<footer>資料每日自動同步 Google Search Console</footer>';
-
-  app.innerHTML = html;
-}
-
-// ---------- 清單頁 ----------
-
-function renderListPage() {
-  fetchCategories_().then(function (groups) {
-    renderSidebarCategories(groups);
-    renderGroups(groups);
-  }).catch(function (err) {
-    showError("載入客戶清單失敗：" + err.message);
-  });
-}
-
-function renderGroups(groups) {
-  var html = '';
-  html += '<h1>MaKarma 成效展示</h1>';
-  html += '<div class="subtitle">即時串接 Google Search Console 數據</div>';
-  html += '<input id="search" type="text" placeholder="搜尋客戶名稱或網域...">';
-
-  html += '<div class="jump-row">';
-  groups.forEach(function (g, i) {
-    html += '<a class="jump-chip" href="#cat-' + i + '">' + escapeHtml(g.category) + '</a>';
-  });
-  html += '</div>';
-
-  html += '<div id="list">';
-  groups.forEach(function (g, i) {
-    html += '<div class="category-section" id="cat-' + i + '">';
-    html += '<div class="category-title">' + escapeHtml(g.category) + '</div>';
-    g.subGroups.forEach(function (sub) {
-      html += '<div class="sub-group">';
-      if (sub.subCategory) html += '<div class="sub-title">' + escapeHtml(sub.subCategory) + '</div>';
-      sub.clients.forEach(function (c) {
-        var searchKey = (c.name + ' ' + c.domain).toLowerCase();
-        html += '<a class="card" data-search="' + escapeHtml(searchKey) + '" data-client-id="' + escapeHtml(c.id) + '">';
-        html += '<div class="card-head">' + logoHtml(c.logo, c.domain, c.name, 'sz-32') + '<div class="card-head-text">';
-        if (c.kind) html += '<div class="kind-badge">' + escapeHtml(c.kind) + '</div>';
-        html += '<div class="name">' + escapeHtml(c.name) + '</div>';
-        html += '</div></div>';
-        if (c.value) html += '<div class="card-stat"><span class="card-stat-value">' + escapeHtml(c.value) + '</span>' + (c.unit ? '<span class="card-stat-unit">' + escapeHtml(c.unit) + '</span>' : '') + '</div>';
-        html += '<div class="domain">' + escapeHtml(c.domain) + '</div>';
-        if (c.intro) html += '<div class="intro">' + escapeHtml(c.intro) + '</div>';
-        html += keywordBadgeRow(c);
-        if (c.launchDate) html += '<div class="launch">上線日 ' + escapeHtml(c.launchDate) + '</div>';
-        html += '</a>';
-      });
-      html += '</div>';
-    });
-    html += '</div>';
-  });
-  html += '</div>';
-  html += '<div id="empty">找不到符合的客戶</div>';
-
-  app.innerHTML = html;
-
-  if (location.hash) {
-    var target = document.querySelector(location.hash);
-    if (target) target.scrollIntoView();
-  }
-
-  app.querySelectorAll('.card').forEach(function (card) {
-    card.addEventListener('click', function () {
-      var id = card.getAttribute('data-client-id');
-      navigateTo(id);
-    });
-  });
-
-  var search = document.getElementById('search');
-  var cards = Array.prototype.slice.call(app.querySelectorAll('.card'));
-  var subGroups = Array.prototype.slice.call(app.querySelectorAll('.sub-group'));
-  var sections = Array.prototype.slice.call(app.querySelectorAll('.category-section'));
-  var empty = document.getElementById('empty');
-
-  search.addEventListener('input', function () {
-    var q = search.value.trim().toLowerCase();
-    var visibleCount = 0;
-    cards.forEach(function (card) {
-      var match = card.getAttribute('data-search').indexOf(q) !== -1;
-      card.style.display = match ? '' : 'none';
-      if (match) visibleCount++;
-    });
-    subGroups.forEach(function (sg) {
-      var anyVisible = Array.prototype.slice.call(sg.querySelectorAll('.card')).some(function (c) { return c.style.display !== 'none'; });
-      sg.style.display = anyVisible ? '' : 'none';
-    });
-    sections.forEach(function (section) {
-      var anyVisible = Array.prototype.slice.call(section.querySelectorAll('.card')).some(function (c) { return c.style.display !== 'none'; });
-      section.style.display = anyVisible ? '' : 'none';
-    });
-    empty.style.display = visibleCount === 0 ? 'block' : 'none';
-  });
-}
-
-// ---------- 報告頁 ----------
+// ---------- 我們自己的報告頁（同事沒追蹤的客戶，退回顯示這個；有完整故事資料的客戶走 casebook.js） ----------
 
 function renderReportPage(clientId) {
   jsonpWithRetry(API_BASE + "?api=client&id=" + encodeURIComponent(clientId)).then(function (data) {
@@ -534,8 +225,6 @@ function renderReportPage(clientId) {
   });
 }
 
-// 客戶故事卡：業績成長、客戶回饋這類 GSC 抓不到的東西，資料來自業務同事另外整理的
-// 案例集，每天自動同步過來，不是我們自己編的
 function renderStorySection(story) {
   var accentStyle = story.brandAccent ? ' style="--story-accent:' + escapeHtml(story.brandAccent) + ';"' : '';
   var html = '<div class="story-card"' + accentStyle + '>';
@@ -602,8 +291,8 @@ function renderReport(data) {
   var hasAiHighlights = data.showProfile && profile.aiHighlights && profile.aiHighlights.length > 0;
   var hasArticles = articles.length > 0;
 
-  var html = '';
-  html += '<a class="back" href="?page=browse">← 所有客戶</a>';
+  var html = '<div class="container">';
+  html += '<a class="back-link" href="?">← 所有客戶</a>';
   html += '<div class="report-head">' + logoHtml(client.logo, client.domain, client.name, 'sz-48') + '<h1>' + escapeHtml(client.name) + '</h1></div>';
   if (client.intro) html += '<div class="report-intro">' + escapeHtml(client.intro) + '</div>';
   html += '<div class="meta"><span>' + escapeHtml(client.domain) + '</span>';
@@ -721,9 +410,10 @@ function renderReport(data) {
     html += '<section><h2>合作亮點</h2><div class="highlight">' + escapeHtml(client.highlight) + '</div></section>';
   }
 
-  html += '<footer>資料每日自動同步 Google Search Console，數字為累計至今總量</footer>';
+  html += '<footer style="text-align:center;color:#bbb;font-size:0.75em;margin-top:30px;">資料每日自動同步 Google Search Console，數字為累計至今總量</footer>';
+  html += '</div>';
 
-  app.innerHTML = html;
+  document.getElementById('main').innerHTML = html;
 
   if (trend.length >= 2) renderTrendChart(trend);
 }
@@ -772,47 +462,32 @@ function renderTrendChart(trend) {
 }
 
 // ---------- 路由 ----------
+// 首頁是同事那套版型（casebook.js 的 cbRenderHome，單頁式、依產業分類瀏覽）；
+// 客戶頁看資料完整度分流：同事有追蹤、資料完整的走她的版型，其餘退回我們自己的報告頁。
 
 function navigateTo(clientId) {
-  var url = clientId ? ('?client=' + encodeURIComponent(clientId)) : '?page=overview';
+  var url = clientId ? ('?client=' + encodeURIComponent(clientId)) : '?';
   history.pushState({ clientId: clientId }, '', url);
   route();
-}
-
-function updateActiveTab(page) {
-  ['tab-overview', 'nav-overview'].forEach(function (id) {
-    var el = document.getElementById(id);
-    if (el) el.classList.toggle('active', page === 'overview');
-  });
-  ['tab-browse', 'nav-browse'].forEach(function (id) {
-    var el = document.getElementById(id);
-    if (el) el.classList.toggle('active', page === 'browse');
-  });
 }
 
 function route() {
   var params = new URLSearchParams(location.search);
   var clientId = params.get('client');
-  var page = params.get('page');
-  app.innerHTML = '<div class="loading">載入中...</div>';
 
   if (clientId) {
-    updateActiveTab(null);
-    renderReportPage(clientId);
-  } else if (page === 'browse') {
-    updateActiveTab('browse');
-    document.title = 'MaKarma 成效展示 · 客戶列表';
-    renderListPage();
+    document.title = '載入中… · SEO 成效';
+    document.getElementById('main').innerHTML = '<div class="container"><p class="loading">正在載入客戶成效…</p></div>';
+    cbRenderClientPage(clientId);
   } else {
-    updateActiveTab('overview');
-    document.title = 'MaKarma SEO 成效戰情室';
-    renderOverviewPage();
+    document.title = 'MaKarma｜客戶成效展示';
+    cbRenderHome();
   }
 }
 
 window.addEventListener('popstate', route);
-route();
-ensureSidebarCategories();
 </script>
+<script src="casebook.js"></script>
+<script>route();</script>
 </body>
 </html>
