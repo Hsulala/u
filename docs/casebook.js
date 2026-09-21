@@ -205,7 +205,29 @@ function cbRenderClient(c) {
   window.scrollTo(0, 0);
 }
 
+// 首頁那幾塊照抄同事的手寫靜態文案（五大特色連結、在地小農、BEYOND TRAFFIC、LATEST CHAPTER）
+// 裡面的連結／data-case 屬性，寫的都是她原本的客戶代號（例如 "hongsong"），這裡轉成我們
+// 自己的 ?client= 網址；對不到的客戶（同事沒追蹤，或我們沒開啟顯示於成效展示頁）連結原樣
+// 失效，不強行處理——通常代表「顯示於成效展示頁」還沒勾這個客戶，勾了之後重新整理就會對到
+function cbRemapStaticLinks_() {
+  document.querySelectorAll('a[href*="/clients/"]').forEach(function (a) {
+    var m = a.getAttribute('href').match(/clients\/([a-z0-9-]+)\/?$/);
+    if (!m) return;
+    var c = cbCases.find(function (x) { return x.amyId === m[1]; });
+    if (c) a.setAttribute('href', cbClientURL(c.id));
+  });
+  document.querySelectorAll('[data-case]').forEach(function (b) {
+    var c = cbCases.find(function (x) { return x.amyId === b.getAttribute('data-case'); });
+    if (c) b.setAttribute('data-case', c.id);
+  });
+  document.querySelectorAll('[data-client]').forEach(function (el) {
+    var c = cbCases.find(function (x) { return x.amyId === el.getAttribute('data-client'); });
+    if (c) el.setAttribute('data-client', c.id);
+  });
+}
+
 function cbRenderOverview() {
+  cbRemapStaticLinks_();
   cbRankingOverview();
   var bigCount = document.querySelector('.big-count');
   if (bigCount) bigCount.innerHTML = cbCases.length + '<span>合作品牌</span>';
