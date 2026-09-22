@@ -32,6 +32,7 @@ const MEETING_TIME_ZONE = "Asia/Taipei";
 const LIFF_ID_WORKLOG = "2007968447-bNwIeM6Y"; // 建立好工作日誌的 LIFF app 後，把 ID 貼在這裡
 const LIFF_ID_CARD = "2007968447-L1XqQgMW";
 const LIFF_ID_MEETING = "2007968447-PQ3LQjeO";
+const LIFF_ID_BIND = "PUT_YOUR_BIND_LIFF_ID_HERE"; // 建立好綁定表單的 LIFF app 後，把 ID 貼在這裡
 
 // 業務戰情室（同事另外架設的 Cloudflare 應用，管客戶/Pipeline/戰報），外部網站直接開連結即可，不需要 LIFF ID
 // 注意：正式站是 workers.dev 這個網址；chatgpt.site 是已經停用、跟正式資料庫脫鉤的舊網址，2026-09-14 發現團隊一直被導去舊站才改回來
@@ -114,7 +115,7 @@ function doGet(e) {
   }
 
   const page = (params.page || "worklog").toLowerCase();
-  const fileMap = { worklog: "liff", card: "card", meeting: "meeting", quickreply: "quickreply" };
+  const fileMap = { worklog: "liff", card: "card", meeting: "meeting", quickreply: "quickreply", bind: "bind" };
   const file = fileMap[page] || "liff";
   return HtmlService.createHtmlOutputFromFile(file)
     .setTitle("MaKarma")
@@ -159,6 +160,10 @@ function doPost(e) {
         return jsonOut(upsertMeeting(body, false));
       case "getMyCard":
         return jsonOut(getCardForLineUser(body.idToken));
+      case "checkBindStatus":
+        return jsonOut(checkBindStatus(body.idToken));
+      case "submitBindRequest":
+        return jsonOut(submitBindRequest(body));
       case "quickReplyPayment":
         requireAuthorizedUser(body.idToken);
         return jsonOut(quickReplyPayment(body));
@@ -812,7 +817,7 @@ function handleLineWebhook(body) {
         replyMenu(event.replyToken, token);
       } else {
         const replyMsg = generateReplyText(text);
-        replyLineText(event.replyToken, token, replyMsg);
+        if (replyMsg) replyLineText(event.replyToken, token, replyMsg);
       }
     }
   });
@@ -846,30 +851,81 @@ function handleBindRequest(userId, replyToken, token) {
     }
   }
 
-  const displayName = getLineDisplayName(userId, token);
-  sheet.appendRow([userId, displayName, "", "", "", "", "", "FALSE"]);
-
-  replyLineText(replyToken, token, "已收到您的綁定申請，請等待管理員審核，通過後會自動通知您🙏");
-  notifyAdminOfBindRequest(displayName, userId);
+  replyBindFormButton(replyToken, token);
 }
 
-function getLineDisplayName(userId, token) {
-  try {
-    const resp = UrlFetchApp.fetch("https://api.line.me/v2/bot/profile/" + userId, {
-      headers: { Authorization: "Bearer " + token },
-      muteHttpExceptions: true,
-    });
-    const result = JSON.parse(resp.getContentText());
-    return result.displayName || "";
-  } catch (err) {
-    return "";
+function replyBindFormButton(replyToken, token) {
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/message/reply", {
+    method: "post",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    payload: JSON.stringify({
+      replyToken: replyToken,
+      messages: [{
+        type: "template",
+        altText: "請填寫綁定表單",
+        template: {
+          type: "buttons",
+          text: "請填寫以下表單完成綁定申請，審核通過後會通知您",
+          actions: [{ type: "uri", label: "填寫綁定表單", uri: "https://liff.line.me/" + LIFF_ID_BIND }],
+        },
+      }],
+    }),
+    muteHttpExceptions: true,
+  });
+}
+
+// 給綁定表單 LIFF 用：查詢目前狀態（new：可以填表單／pending：審核中／approved：已通過）
+function checkBindStatus(idToken) {
+  const userId = verifyLineIdToken(idToken);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CARD_ROSTER_SHEET);
+  if (!sheet) return { status: "success", state: "new" };
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === userId) {
+      const enabled = String(data[i][7]).toUpperCase() === "TRUE";
+      return { status: "success", state: enabled ? "approved" : "pending" };
+    }
   }
+  return { status: "success", state: "new" };
 }
 
-function notifyAdminOfBindRequest(displayName, userId) {
+// 給綁定表單 LIFF 用：送出姓名/英文姓名/手機/Email/LINE ID，職稱留給管理員審核時補上
+function submitBindRequest(body) {
+  const userId = verifyLineIdToken(body.idToken);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CARD_ROSTER_SHEET);
+  if (!sheet) throw new Error("系統尚未設定完成，請聯絡管理員");
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === userId) {
+      const enabled = String(data[i][7]).toUpperCase() === "TRUE";
+      return { status: "success", state: enabled ? "approved" : "pending" };
+    }
+  }
+
+  const name = (body.name || "").trim();
+  if (!name) throw new Error("請填寫姓名");
+
+  sheet.appendRow([
+    userId,
+    name,
+    (body.englishName || "").trim(),
+    "",
+    (body.mobile || "").trim(),
+    (body.email || "").trim(),
+    (body.lineId || "").trim(),
+    "FALSE",
+  ]);
+
+  notifyAdminOfBindRequest(name, userId);
+  return { status: "success", state: "pending" };
+}
+
+function notifyAdminOfBindRequest(name, userId) {
   sendTelegramMessage(
-    "🔔 新的綁定申請\n姓名：" + (displayName || "（無法取得）") + "\nLINE ID：" + userId +
-    "\n\n請到「" + CARD_ROSTER_SHEET + "」分頁把這個人那一列的「啟用」欄改成 TRUE 來核准"
+    "🔔 新的綁定申請\n姓名：" + name + "\nLINE ID：" + userId +
+    "\n\n請到「" + CARD_ROSTER_SHEET + "」分頁確認資料、補上職稱，並把「啟用」欄改成 TRUE 來核准"
   );
 }
 
@@ -976,6 +1032,71 @@ function setupBindApprovalTrigger() {
     .onEdit()
     .create();
   Logger.log("綁定核准觸發器已設定完成");
+}
+
+// ============================================================
+// 一次性：直接用 Messaging API 建立「已綁定版」圖文選單，跳過 OA Manager
+// 排程介面的「使用期間」限制（這個選單只靠程式指定給個別使用者，不需要搶預設時段）。
+// 前提：圖片要先上傳到 GitHub 的 docs/richmenu_bound.png
+// 用法：在編輯器手動執行一次，成功會把 ID 自動存進 RICH_MENU_ID_BOUND
+// ============================================================
+function createBoundRichMenu() {
+  const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
+  if (!token) {
+    Logger.log("尚未設定 LINE_CHANNEL_ACCESS_TOKEN");
+    return;
+  }
+
+  const richMenuObject = {
+    size: { width: 2500, height: 1686 },
+    selected: false,
+    name: "已綁定版",
+    chatBarText: "選單",
+    areas: [
+      { bounds: { x: 0, y: 0, width: 1250, height: 843 }, action: { type: "uri", label: "名片", uri: "https://liff.line.me/" + LIFF_ID_CARD } },
+      { bounds: { x: 1250, y: 0, width: 1250, height: 843 }, action: { type: "uri", label: "會議邀請", uri: "https://liff.line.me/" + LIFF_ID_MEETING } },
+      { bounds: { x: 0, y: 843, width: 1250, height: 843 }, action: { type: "uri", label: "常用語錄", uri: "https://liff.line.me/2007968447-joltpkgr" } },
+      { bounds: { x: 1250, y: 843, width: 1250, height: 843 }, action: { type: "uri", label: "業務戰情室", uri: SALES_WAR_ROOM_URL } },
+    ],
+  };
+
+  const createResp = UrlFetchApp.fetch("https://api.line.me/v2/bot/richmenu", {
+    method: "post",
+    contentType: "application/json",
+    headers: { Authorization: "Bearer " + token },
+    payload: JSON.stringify(richMenuObject),
+    muteHttpExceptions: true,
+  });
+  const createResult = JSON.parse(createResp.getContentText());
+  if (!createResult.richMenuId) {
+    Logger.log("建立選單失敗：" + createResp.getContentText());
+    return;
+  }
+  const richMenuId = createResult.richMenuId;
+  Logger.log("選單已建立，ID：" + richMenuId);
+
+  const imageUrl = "https://raw.githubusercontent.com/Hsulala/u/main/docs/richmenu_bound.png";
+  const imageResp = UrlFetchApp.fetch(imageUrl, { muteHttpExceptions: true });
+  if (imageResp.getResponseCode() !== 200) {
+    Logger.log("抓取圖片失敗（HTTP " + imageResp.getResponseCode() + "），請確認已上傳到 " + imageUrl);
+    return;
+  }
+  const imageBlob = imageResp.getBlob().setContentType("image/png");
+
+  const uploadResp = UrlFetchApp.fetch("https://api-data.line.me/v2/bot/richmenu/" + richMenuId + "/content", {
+    method: "post",
+    contentType: "image/png",
+    headers: { Authorization: "Bearer " + token },
+    payload: imageBlob.getBytes(),
+    muteHttpExceptions: true,
+  });
+  if (uploadResp.getResponseCode() !== 200) {
+    Logger.log("上傳圖片失敗：" + uploadResp.getContentText());
+    return;
+  }
+
+  PropertiesService.getScriptProperties().setProperty("RICH_MENU_ID_BOUND", richMenuId);
+  Logger.log("完成！RICH_MENU_ID_BOUND 已自動設定為：" + richMenuId);
 }
 
 function replyLineText(replyToken, token, text) {
@@ -1116,15 +1237,6 @@ function generateMeetingMessage(template, entities, userInput) {
   return callClaude(systemPrompt, "輸入：" + userInput + "\n資訊：\n" + lines, 800, "low");
 }
 
-const FALLBACK_SYSTEM_PROMPT =
-  "你是瑪卡鎷網路行銷（MaKarma）LINE 官方帳號的客服助理。\n" +
-  "使用者這則訊息無法對應到既有的範本。請用繁體中文簡短回覆（不超過3句話），語氣親切自然。\n" +
-  "如果問題涉及報價、合約細節、專案進度等你不清楚的具體資訊，請直接引導對方稍等由專人回覆，不要編造答案。";
-
-function fallbackReply(message) {
-  return callClaude(FALLBACK_SYSTEM_PROMPT, message, 300, "low");
-}
-
 function generateReplyText(message) {
   try {
     const loaded = loadTemplatesData();
@@ -1148,10 +1260,10 @@ function generateReplyText(message) {
     if (intent === "meeting_reminder" || intent === "meeting_thanks") {
       return generateMeetingMessage(template, entities, message);
     }
-    return fallbackReply(message);
+    return null; // 完全辨識不出來就不回應，不再呼叫 AI 自由發揮
   } catch (err) {
     Logger.log("[generateReplyText ERROR] " + err);
-    return "處理訊息時發生錯誤，請稍後再試 🙏";
+    return null; // 處理過程出錯也不回應，避免亂回
   }
 }
 
