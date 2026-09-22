@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>綁定申請</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 500px; margin: 0 auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #222; font-size: 20px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; font-size: 14px; }
+        input[type="text"], input[type="tel"], input[type="email"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 6px; background-color: #F39800; color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #statusScreen { text-align: center; padding: 20px 0; font-size: 16px; line-height: 1.8; display: none; }
+        #formScreen { display: none; }
+        #statusMsg { text-align: center; margin-top: 12px; font-size: 13px; color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>綁定申請</h1>
+
+        <div id="loadingScreen">載入中...</div>
+
+        <div id="statusScreen"></div>
+
+        <div id="formScreen">
+            <form id="bindForm">
+                <div class="form-group"><label for="name">姓名 *</label><input type="text" id="name" placeholder="例如：徐昀" required></div>
+                <div class="form-group"><label for="englishName">英文姓名</label><input type="text" id="englishName" placeholder="例如：ULY HSU"></div>
+                <div class="form-group"><label for="mobile">手機</label><input type="tel" id="mobile" placeholder="例如：0912345678"></div>
+                <div class="form-group"><label for="email">Email</label><input type="email" id="email" placeholder="選填"></div>
+                <div class="form-group"><label for="lineId">LINE ID</label><input type="text" id="lineId" placeholder="你的 LINE ID（選填）"></div>
+                <button type="button" id="submitButton">送出申請</button>
+            </form>
+        </div>
+
+        <div id="statusMsg"></div>
+    </div>
+
+    <script>
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyxho67YFK74dy5Y76txc3AQ_5JEVLcny7I6-aRNvfLREB9A3ymaS4GSYwm4evPERYxiw/exec";
+        const LIFF_ID = "PUT_YOUR_BIND_LIFF_ID_HERE";
+
+        document.addEventListener("DOMContentLoaded", init);
+
+        async function init() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+            } catch (err) {
+                showError("LIFF 初始化失敗：" + err);
+                return;
+            }
+
+            try {
+                const result = await callBackend({ action: "checkBindStatus" });
+                if (result.status !== "success") throw new Error(result.message || "查詢失敗");
+
+                document.getElementById("loadingScreen").style.display = "none";
+
+                if (result.state === "approved") {
+                    showStatusScreen("✅ 您已經綁定過了，可以直接使用選單功能囉！");
+                } else if (result.state === "pending") {
+                    showStatusScreen("⏳ 您的綁定申請正在審核中，請耐心等候，通過後會通知您。");
+                } else {
+                    document.getElementById("formScreen").style.display = "block";
+                    document.getElementById("submitButton").addEventListener("click", submitForm);
+                }
+            } catch (err) {
+                showError(String(err.message || err));
+            }
+        }
+
+        function showStatusScreen(text) {
+            const el = document.getElementById("statusScreen");
+            el.textContent = text;
+            el.style.display = "block";
+        }
+
+        function showError(msg) {
+            document.getElementById("loadingScreen").style.display = "none";
+            document.getElementById("statusMsg").textContent = msg;
+        }
+
+        async function callBackend(payload) {
+            const res = await fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(Object.assign({ idToken: liff.getIDToken() }, payload)),
+            });
+            return res.json();
+        }
+
+        async function submitForm() {
+            const btn = document.getElementById("submitButton");
+            const name = document.getElementById("name").value.trim();
+            if (!name) {
+                showError("請填寫姓名");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = "送出中...";
+            document.getElementById("statusMsg").textContent = "";
+
+            try {
+                const result = await callBackend({
+                    action: "submitBindRequest",
+                    name: name,
+                    englishName: document.getElementById("englishName").value.trim(),
+                    mobile: document.getElementById("mobile").value.trim(),
+                    email: document.getElementById("email").value.trim(),
+                    lineId: document.getElementById("lineId").value.trim(),
+                });
+                if (result.status !== "success") throw new Error(result.message || "送出失敗");
+
+                document.getElementById("formScreen").style.display = "none";
+                showStatusScreen("✅ 已送出綁定申請，請等待管理員審核，通過後會自動通知您。");
+            } catch (err) {
+                showError(String(err.message || err));
+                btn.disabled = false;
+                btn.textContent = "送出申請";
+            }
+        }
+    </script>
+</body>
+</html>
