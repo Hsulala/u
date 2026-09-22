@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>開啟中</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 40px 20px; text-align: center; color: #666; }
+    </style>
+</head>
+<body>
+    <div id="msg">開啟中...</div>
+    <script>
+        const LIFF_ID = "PUT_YOUR_REDIRECT_LIFF_ID_HERE";
+        const TARGET_URL = "https://makarma-sales-war-room.gorgeousamy2022.workers.dev";
+
+        liff.init({ liffId: LIFF_ID })
+            .then(() => {
+                liff.openWindow({ url: TARGET_URL, external: true });
+                liff.closeWindow();
+            })
+            .catch((err) => {
+                document.getElementById("msg").textContent = "開啟失敗：" + err;
+            });
+    </script>
+</body>
+</html>
