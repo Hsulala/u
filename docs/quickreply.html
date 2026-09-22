@@ -101,9 +101,7 @@
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyxho67YFK74dy5Y76txc3AQ_5JEVLcny7I6-aRNvfLREB9A3ymaS4GSYwm4evPERYxiw/exec";
         const LIFF_ID = "2007968447-QDinizJg";
 
-        document.addEventListener("DOMContentLoaded", function () {
-            liff.init({ liffId: LIFF_ID }).catch((err) => showStatus("LIFF 初始化失敗：" + err, true));
-
+        document.addEventListener("DOMContentLoaded", async function () {
             document.querySelectorAll(".tab").forEach((tab) => {
                 tab.addEventListener("click", () => switchTab(tab.dataset.panel));
             });
@@ -115,6 +113,14 @@
             document.getElementById("copyButton").addEventListener("click", copyResult);
 
             updatePaymentFields();
+
+            try {
+                await liff.init({ liffId: LIFF_ID });
+            } catch (err) {
+                showStatus("LIFF 初始化失敗：" + err, true);
+                return; // 初始化沒成功就不要再往下呼叫後端，避免蓋掉這個訊息
+            }
+
             loadQaList();
         });
 
