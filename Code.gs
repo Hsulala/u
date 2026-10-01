@@ -32,10 +32,15 @@ const MEETING_TIME_ZONE = "Asia/Taipei";
 const LIFF_ID_WORKLOG = "2007968447-bNwIeM6Y"; // 建立好工作日誌的 LIFF app 後，把 ID 貼在這裡
 const LIFF_ID_CARD = "2007968447-L1XqQgMW";
 const LIFF_ID_MEETING = "2007968447-PQ3LQjeO";
-const LIFF_ID_BIND = "PUT_YOUR_BIND_LIFF_ID_HERE"; // 建立好綁定表單的 LIFF app 後，把 ID 貼在這裡
+const LIFF_ID_BIND = "2007968447-yrFkklud";
+const LIFF_ID_REDIRECT = "2007968447-6raunZFW";
+const LIFF_ID_QUICKREPLY = "2007968447-QDinizJg";
 
-// 業務戰情室（同事另外架設的 Cloudflare 應用，管客戶/Pipeline/戰報），外部網站直接開連結即可，不需要 LIFF ID
+// 業務戰情室（同事另外架設的 Cloudflare 應用，管客戶/Pipeline/戰報）
 // 注意：正式站是 workers.dev 這個網址；chatgpt.site 是已經停用、跟正式資料庫脫鉤的舊網址，2026-09-14 發現團隊一直被導去舊站才改回來
+// 因為裡面有 Google 登入，LINE 內嵌瀏覽器會擋掉，所以連結入口實際上走 redirect.html（LIFF_ID_REDIRECT）
+// 用 liff.openWindow(external:true) 強制開外部瀏覽器；這裡留著這個常數只是紀錄正確網址，
+// redirect.html 裡的 TARGET_URL 要跟這個保持一致（沒有共用的建置流程，得手動同步）
 const SALES_WAR_ROOM_URL = "https://makarma-sales-war-room.gorgeousamy2022.workers.dev";
 
 const DEFAULT_TAX_ID = "96756074"; // 沒有真實統編時的暫代值（CRM API 允許這組統編重複）
@@ -939,14 +944,21 @@ function onSheetEditInstallable(e) {
     if (sheet.getName() !== CARD_ROSTER_SHEET) return;
     if (e.range.getColumn() !== 8 || e.range.getRow() === 1) return; // 第8欄＝啟用，跳過表頭
 
+    const oldValue = String(e.oldValue || "").toUpperCase();
     const newValue = String(e.value || "").toUpperCase();
-    if (newValue !== "TRUE") return;
+    if (oldValue === newValue) return; // 沒有實際變化就不用處理
 
     const userId = sheet.getRange(e.range.getRow(), 1).getValue();
     if (!userId) return;
 
-    switchUserToRichMenu(userId, "RICH_MENU_ID_BOUND");
-    notifyUserApproved(userId);
+    if (newValue === "TRUE") {
+      switchUserToRichMenu(userId, "RICH_MENU_ID_BOUND");
+      notifyUserApproved(userId);
+    } else if (oldValue === "TRUE") {
+      // 從 TRUE 改回其他值＝解除綁定：取消個人選單指定，自動退回帳號預設的未綁定版選單
+      unlinkUserRichMenu(userId);
+      notifyUserRevoked(userId);
+    }
   } catch (err) {
     Logger.log("[onSheetEditInstallable ERROR] " + err);
   }
@@ -967,6 +979,29 @@ function switchUserToRichMenu(userId, propertyName) {
   });
 }
 
+// 重新把「已綁定版」選單套用給所有已核准（啟用=TRUE）的使用者。
+// 用在：跑完 createBoundRichMenu 重建選單之後，讓舊使用者跟上最新的 richMenuId
+// （重建會產生新 ID，已核准使用者原本指向的舊 ID 已被刪除，選單會悄悄退回帳號預設）。
+function reapplyBoundRichMenuToApprovedUsers() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CARD_ROSTER_SHEET);
+  if (!sheet) {
+    Logger.log("找不到「" + CARD_ROSTER_SHEET + "」分頁");
+    return;
+  }
+
+  const data = sheet.getDataRange().getValues();
+  let count = 0;
+  for (let i = 1; i < data.length; i++) {
+    const userId = data[i][0];
+    const enabled = String(data[i][7]).toUpperCase() === "TRUE";
+    if (userId && enabled) {
+      switchUserToRichMenu(userId, "RICH_MENU_ID_BOUND");
+      count++;
+    }
+  }
+  Logger.log("已重新套用選單給 " + count + " 位核准使用者");
+}
+
 function notifyUserApproved(userId) {
   const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
   UrlFetchApp.fetch("https://api.line.me/v2/bot/message/push", {
@@ -981,9 +1016,51 @@ function notifyUserApproved(userId) {
   });
 }
 
+// 取消個人化選單指定，之後這個使用者就會回退成帳號預設的圖文選單（未綁定版）
+function unlinkUserRichMenu(userId) {
+  const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/user/" + userId + "/richmenu", {
+    method: "delete",
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
+  });
+}
+
+function notifyUserRevoked(userId) {
+  const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
+  UrlFetchApp.fetch("https://api.line.me/v2/bot/message/push", {
+    method: "post",
+    contentType: "application/json",
+    headers: { Authorization: "Bearer " + token },
+    payload: JSON.stringify({
+      to: userId,
+      messages: [{ type: "text", text: "您的使用權限已被取消，如有疑問請聯絡管理員🙏" }],
+    }),
+    muteHttpExceptions: true,
+  });
+}
+
 // 診斷用：在編輯器裡直接執行，看「執行記錄」的 Log 輸出，確認目前帳號底下有哪些圖文選單、
 // 各自的 richMenuId 是什麼。用 LINE Official Account Manager 手動做好選單後，
 // 要靠這個函式才能拿到 ID（manager.line.biz 網頁上不會直接顯示 richMenuId）。
+// 清掉之前建錯（按鈕對應舊的、或沒圖片）的圖文選單，跑完再執行 createBoundRichMenu
+// 就會用現在程式碼裡正確的按鈕對應＋圖片重新建一個全新的
+function deleteOldBoundRichMenus() {
+  const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
+  const idsToDelete = [
+    "richmenu-672d4130ac63795c78740c0d18357fc7",
+    "richmenu-992e0158fbfb9accd351c6c4201038a4",
+  ];
+  idsToDelete.forEach((id) => {
+    const resp = UrlFetchApp.fetch("https://api.line.me/v2/bot/richmenu/" + id, {
+      method: "delete",
+      headers: { Authorization: "Bearer " + token },
+      muteHttpExceptions: true,
+    });
+    Logger.log(id + " 刪除結果：HTTP " + resp.getResponseCode());
+  });
+}
+
 function listRichMenus() {
   const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
   if (!token) {
@@ -1037,7 +1114,7 @@ function setupBindApprovalTrigger() {
 // ============================================================
 // 一次性：直接用 Messaging API 建立「已綁定版」圖文選單，跳過 OA Manager
 // 排程介面的「使用期間」限制（這個選單只靠程式指定給個別使用者，不需要搶預設時段）。
-// 前提：圖片要先上傳到 GitHub 的 docs/richmenu_bound.png
+// 前提：圖片要先上傳到 GitHub 的 docs/richmenu_bound.jpg
 // 用法：在編輯器手動執行一次，成功會把 ID 自動存進 RICH_MENU_ID_BOUND
 // ============================================================
 function createBoundRichMenu() {
@@ -1049,14 +1126,14 @@ function createBoundRichMenu() {
 
   const richMenuObject = {
     size: { width: 2500, height: 1686 },
-    selected: false,
+    selected: true, // 預設展開
     name: "已綁定版",
-    chatBarText: "選單",
+    chatBarText: "\\ 開張大吉 /",
     areas: [
-      { bounds: { x: 0, y: 0, width: 1250, height: 843 }, action: { type: "uri", label: "名片", uri: "https://liff.line.me/" + LIFF_ID_CARD } },
-      { bounds: { x: 1250, y: 0, width: 1250, height: 843 }, action: { type: "uri", label: "會議邀請", uri: "https://liff.line.me/" + LIFF_ID_MEETING } },
-      { bounds: { x: 0, y: 843, width: 1250, height: 843 }, action: { type: "uri", label: "常用語錄", uri: "https://liff.line.me/2007968447-joltpkgr" } },
-      { bounds: { x: 1250, y: 843, width: 1250, height: 843 }, action: { type: "uri", label: "業務戰情室", uri: SALES_WAR_ROOM_URL } },
+      { bounds: { x: 0, y: 0, width: 1250, height: 843 }, action: { type: "uri", label: "業務戰情室", uri: "https://liff.line.me/" + LIFF_ID_REDIRECT } },
+      { bounds: { x: 1250, y: 0, width: 1250, height: 843 }, action: { type: "uri", label: "名片", uri: "https://liff.line.me/" + LIFF_ID_CARD } },
+      { bounds: { x: 0, y: 843, width: 1250, height: 843 }, action: { type: "uri", label: "常用語錄", uri: "https://liff.line.me/" + LIFF_ID_QUICKREPLY } },
+      { bounds: { x: 1250, y: 843, width: 1250, height: 843 }, action: { type: "uri", label: "會議邀請", uri: "https://liff.line.me/" + LIFF_ID_MEETING } },
     ],
   };
 
@@ -1075,17 +1152,48 @@ function createBoundRichMenu() {
   const richMenuId = createResult.richMenuId;
   Logger.log("選單已建立，ID：" + richMenuId);
 
-  const imageUrl = "https://raw.githubusercontent.com/Hsulala/u/main/docs/richmenu_bound.png";
+  const imageUrl = "https://raw.githubusercontent.com/Hsulala/u/main/docs/richmenu_bound.jpg";
   const imageResp = UrlFetchApp.fetch(imageUrl, { muteHttpExceptions: true });
   if (imageResp.getResponseCode() !== 200) {
     Logger.log("抓取圖片失敗（HTTP " + imageResp.getResponseCode() + "），請確認已上傳到 " + imageUrl);
     return;
   }
-  const imageBlob = imageResp.getBlob().setContentType("image/png");
+  const imageBlob = imageResp.getBlob().setContentType("image/jpeg");
 
   const uploadResp = UrlFetchApp.fetch("https://api-data.line.me/v2/bot/richmenu/" + richMenuId + "/content", {
     method: "post",
-    contentType: "image/png",
+    contentType: "image/jpeg",
+    headers: { Authorization: "Bearer " + token },
+    payload: imageBlob.getBytes(),
+    muteHttpExceptions: true,
+  });
+  if (uploadResp.getResponseCode() !== 200) {
+    Logger.log("上傳圖片失敗：" + uploadResp.getContentText());
+    return;
+  }
+
+  PropertiesService.getScriptProperties().setProperty("RICH_MENU_ID_BOUND", richMenuId);
+  Logger.log("完成！RICH_MENU_ID_BOUND 已自動設定為：" + richMenuId);
+}
+
+// 如果 createBoundRichMenu 選單建立成功、但圖片上傳失敗（例如圖片路徑還沒放對），
+// 不用重新建立選單（會建出重複的），改執行這個補上圖片即可。
+// 用法：把下面 richMenuId 換成上次 Log 裡顯示的那組 ID，再執行一次。
+function retryUploadBoundRichMenuImage() {
+  const richMenuId = "richmenu-992e0158fbfb9accd351c6c4201038a4";
+  const token = PropertiesService.getScriptProperties().getProperty("LINE_CHANNEL_ACCESS_TOKEN");
+
+  const imageUrl = "https://raw.githubusercontent.com/Hsulala/u/main/docs/richmenu_bound.jpg";
+  const imageResp = UrlFetchApp.fetch(imageUrl, { muteHttpExceptions: true });
+  if (imageResp.getResponseCode() !== 200) {
+    Logger.log("抓取圖片失敗（HTTP " + imageResp.getResponseCode() + "），請確認已上傳到 " + imageUrl);
+    return;
+  }
+  const imageBlob = imageResp.getBlob().setContentType("image/jpeg");
+
+  const uploadResp = UrlFetchApp.fetch("https://api-data.line.me/v2/bot/richmenu/" + richMenuId + "/content", {
+    method: "post",
+    contentType: "image/jpeg",
     headers: { Authorization: "Bearer " + token },
     payload: imageBlob.getBytes(),
     muteHttpExceptions: true,
@@ -1360,7 +1468,7 @@ function replyMenu(replyToken, token) {
             style: "primary",
             height: "sm",
             color: "#1976D2",
-            action: { type: "uri", label: "業務戰情室", uri: SALES_WAR_ROOM_URL },
+            action: { type: "uri", label: "業務戰情室", uri: "https://liff.line.me/" + LIFF_ID_REDIRECT },
           },
         ],
       },

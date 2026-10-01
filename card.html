@@ -113,6 +113,7 @@
         }
 
         function renderPreview(data) {
+            data = normalizeCard(data);
             document.getElementById('pv-title').textContent = data.title;
             document.getElementById('pv-name').textContent = data.name;
             document.getElementById('pv-englishName').textContent = data.englishName;
@@ -159,6 +160,7 @@
         }
 
         function buildShareUrl(data) {
+            data = normalizeCard(data);
             const params = new URLSearchParams({
                 name: data.name,
                 englishName: data.englishName,
@@ -206,10 +208,26 @@
             }
         }
 
-        function createFlexMessage(data) {
+        // LINE 對 Flex 內容很嚴格：text 必須是非空字串，只要有一個欄位是數字（試算表常把手機存成數字）
+        // 或空字串，整則訊息就會被靜默丟棄（分享看似成功，對方卻收不到），所以送出前先統一轉成字串
+        function normalizeCard(data) {
+            const out = {};
+            ['name', 'englishName', 'title', 'mobile', 'email', 'lineId'].forEach((k) => {
+                out[k] = String(data[k] == null ? '' : data[k]).trim();
+            });
+            // 試算表把手機存成數字會吃掉開頭的 0（978915215），台灣手機應為 10 碼 09 開頭，補回來
+            if (/^9\d{8}$/.test(out.mobile)) out.mobile = '0' + out.mobile;
+            return out;
+        }
+
+        function createFlexMessage(rawData) {
+            const data = normalizeCard(rawData);
+            const mobileText = data.mobile || '-';
+            const telUri = 'tel:' + data.mobile.replace(/[^0-9+]/g, '');
+            const mailUri = 'mailto:' + data.email;
             return {
                 "type": "flex",
-                "altText": `${data.name} 的個人名片 - MaKarma`,
+                "altText": `${data.name || "MaKarma"} 的個人名片 - MaKarma`,
                 "contents": {
                     "type": "bubble",
                     "size": "mega",
@@ -229,7 +247,7 @@
                                         "contents": [
                                             {
                                                 "type": "text",
-                                                "text": data.title,
+                                                "text": data.title || "-",
                                                 "size": "sm",
                                                 "color": "#F39800",
                                                 "weight": "bold"
@@ -242,7 +260,7 @@
                                                 "contents": [
                                                     {
                                                         "type": "text",
-                                                        "text": data.name,
+                                                        "text": data.name || "-",
                                                         "size": "xl",
                                                         "weight": "bold",
                                                         "color": "#F39800",
@@ -250,7 +268,7 @@
                                                     },
                                                     {
                                                         "type": "text",
-                                                        "text": data.englishName,
+                                                        "text": data.englishName || "-",
                                                         "size": "md",
                                                         "color": "#333333",
                                                         "flex": 0
@@ -306,7 +324,7 @@
                                             },
                                             {
                                                 "type": "text",
-                                                "text": data.mobile,
+                                                "text": mobileText,
                                                 "margin": "md",
                                                 "size": "sm",
                                                 "weight": "bold"
@@ -314,7 +332,7 @@
                                         ],
                                         "action": {
                                             "type": "uri",
-                                            "uri": "tel:" + data.mobile
+                                            "uri": data.mobile ? telUri : WEBSITE_URL
                                         }
                                     },
                                     {
@@ -330,7 +348,7 @@
                                             },
                                             {
                                                 "type": "text",
-                                                "text": data.lineId,
+                                                "text": data.lineId || "-",
                                                 "margin": "md",
                                                 "size": "sm",
                                                 "weight": "bold"
@@ -350,7 +368,7 @@
                                             },
                                             {
                                                 "type": "text",
-                                                "text": data.email,
+                                                "text": data.email || "-",
                                                 "margin": "md",
                                                 "size": "sm",
                                                 "weight": "bold"
@@ -358,7 +376,7 @@
                                         ],
                                         "action": {
                                             "type": "uri",
-                                            "uri": "mailto:" + data.email
+                                            "uri": data.email ? mailUri : WEBSITE_URL
                                         }
                                     }
                                 ]
