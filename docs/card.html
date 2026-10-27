@@ -63,7 +63,6 @@
 
         // 【連結網址】
         const WEBSITE_URL = "https://www.makarma.com.tw/";
-        const PERFORMANCE_URL = "https://makarma-client-results.gorgeousamy2022.chatgpt.site/";
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyxho67YFK74dy5Y76txc3AQ_5JEVLcny7I6-aRNvfLREB9A3ymaS4GSYwm4evPERYxiw/exec";
         // ===================================================================
 
@@ -220,11 +219,36 @@
             return out;
         }
 
+        // 主按鈕實心橘底，其餘為橘色外框
+        function flexButton(label, uri, primary) {
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "paddingAll": "12px",
+                "cornerRadius": "10px",
+                "backgroundColor": primary ? "#F39800" : "#FFFFFF",
+                "borderWidth": primary ? "none" : "1.5px",
+                "borderColor": "#C97F1E",
+                "contents": [{
+                    "type": "text",
+                    "text": label,
+                    "align": "center",
+                    "weight": "bold",
+                    "color": primary ? "#FFFFFF" : "#C97F1E"
+                }],
+                "action": { "type": "uri", "label": label.slice(0, 20), "uri": uri }
+            };
+        }
+
         function createFlexMessage(rawData) {
             const data = normalizeCard(rawData);
             const mobileText = data.mobile || '-';
             const telUri = 'tel:' + data.mobile.replace(/[^0-9+]/g, '');
             const mailUri = 'mailto:' + data.email;
+            // 有填 LINE ID 才顯示「加 LINE 好友」；官方帳號 ID 本身以 @ 開頭，個人 ID 前面要加 ~
+            const lineAddUri = data.lineId
+                ? 'https://line.me/R/ti/p/' + (data.lineId.startsWith('@') ? '' : '~') + encodeURIComponent(data.lineId).replace(/^%40/, '@')
+                : '';
             return {
                 "type": "flex",
                 "altText": `${data.name || "MaKarma"} 的個人名片 - MaKarma`,
@@ -420,45 +444,9 @@
                         "layout": "vertical",
                         "spacing": "sm",
                         "contents": [
-                            {
-                                "type": "button",
-                                "style": "primary",
-                                "height": "sm",
-                                "color": "#FFA000",
-                                "action": {
-                                    "type": "uri",
-                                    "label": "轉發這張名片",
-                                    "uri": buildShareUrl(data)
-                                }
-                            },
-                            {
-                                "type": "separator"
-                            },
-                            {
-                                "type": "button",
-                                "style": "primary",
-                                "height": "sm",
-                                "color": "#FFA000",
-                                "action": {
-                                    "type": "uri",
-                                    "label": "官方網站",
-                                    "uri": WEBSITE_URL
-                                }
-                            },
-                            {
-                                "type": "separator"
-                            },
-                            {
-                                "type": "button",
-                                "style": "primary",
-                                "height": "sm",
-                                "color": "#FFA000",
-                                "action": {
-                                    "type": "uri",
-                                    "label": "成效展示頁",
-                                    "uri": PERFORMANCE_URL
-                                }
-                            }
+                            ...(lineAddUri ? [flexButton(`私訊 ${data.englishName || data.name}`, lineAddUri, true)] : []),
+                            flexButton("轉發這張名片", buildShareUrl(data), !lineAddUri),
+                            flexButton("官方網站", WEBSITE_URL, false)
                         ]
                     }
                 }
