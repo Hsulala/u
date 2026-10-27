@@ -219,6 +219,27 @@
             return out;
         }
 
+        // 主按鈕實心橘底，其餘為橘色外框
+        function flexButton(label, uri, primary) {
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "paddingAll": "12px",
+                "cornerRadius": "10px",
+                "backgroundColor": primary ? "#F39800" : "#FFFFFF",
+                "borderWidth": primary ? "none" : "1.5px",
+                "borderColor": "#C97F1E",
+                "contents": [{
+                    "type": "text",
+                    "text": label,
+                    "align": "center",
+                    "weight": "bold",
+                    "color": primary ? "#FFFFFF" : "#C97F1E"
+                }],
+                "action": { "type": "uri", "label": label.slice(0, 20), "uri": uri }
+            };
+        }
+
         function createFlexMessage(rawData) {
             const data = normalizeCard(rawData);
             const mobileText = data.mobile || '-';
@@ -423,44 +444,9 @@
                         "layout": "vertical",
                         "spacing": "sm",
                         "contents": [
-                            ...(lineAddUri ? [{
-                                "type": "button",
-                                "style": "primary",
-                                "height": "sm",
-                                "color": "#06C755",
-                                "action": {
-                                    "type": "uri",
-                                    "label": "加 LINE 好友",
-                                    "uri": lineAddUri
-                                }
-                            }, {
-                                "type": "separator"
-                            }] : []),
-                            {
-                                "type": "button",
-                                "style": "primary",
-                                "height": "sm",
-                                "color": "#FFA000",
-                                "action": {
-                                    "type": "uri",
-                                    "label": "轉發這張名片",
-                                    "uri": buildShareUrl(data)
-                                }
-                            },
-                            {
-                                "type": "separator"
-                            },
-                            {
-                                "type": "button",
-                                "style": "primary",
-                                "height": "sm",
-                                "color": "#FFA000",
-                                "action": {
-                                    "type": "uri",
-                                    "label": "官方網站",
-                                    "uri": WEBSITE_URL
-                                }
-                            }
+                            ...(lineAddUri ? [flexButton(`私訊 ${data.englishName || data.name}`, lineAddUri, true)] : []),
+                            flexButton("轉發這張名片", buildShareUrl(data), !lineAddUri),
+                            flexButton("官方網站", WEBSITE_URL, false)
                         ]
                     }
                 }
