@@ -53,7 +53,9 @@
         const LOGO_URL = "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png";
         const PHONE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/phone.png";
         const EMAIL_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/mail.png"; // 修正網址（移除重複的 h）
-        const VERTICAL_BRAND_URL = "https://raw.githubusercontent.com/Hsulala/u/main/makarma_vertical.png";
+        // 右側直排 MaKarma：每個字母一張圖，由 spaceBetween 均分間距，卡片高度變動時自動撐開
+        const VERTICAL_BRAND_HEIGHTS = [53, 40, 44, 40, 27, 57, 39]; // 各字母圖片原始高度（寬皆為 110）
+        const VERTICAL_BRAND_BASE = "https://raw.githubusercontent.com/Hsulala/u/main/makarma_v"; // 後面接 1~7.png
         const LINE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/lineid.png";
 
         // 【固定公司資訊】所有人共用，不用每次填
@@ -310,15 +312,6 @@
                                                 "margin": "md"
                                             }
                                         ]
-                                    },
-                                    {
-                                        "type": "image",
-                                        "url": VERTICAL_BRAND_URL,
-                                        "size": "52px",
-                                        "aspectRatio": "152:452",
-                                        "aspectMode": "fit",
-                                        "flex": 0,
-                                        "gravity": "top"
                                     }
                                 ]
                             },
@@ -433,6 +426,23 @@
                                         "wrap": true
                                     }
                                 ]
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "position": "absolute",
+                                "offsetTop": "55px",
+                                "offsetBottom": "190px",
+                                "offsetEnd": "20px",
+                                "width": "30px",
+                                "justifyContent": "space-between",
+                                "contents": VERTICAL_BRAND_HEIGHTS.map((h, i) => ({
+                                    "type": "image",
+                                    "url": `${VERTICAL_BRAND_BASE}${i + 1}.png`,
+                                    "size": "30px",
+                                    "aspectRatio": `110:${h}`,
+                                    "aspectMode": "fit"
+                                }))
                             }
                         ]
                     },
