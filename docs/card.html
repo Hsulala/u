@@ -53,6 +53,7 @@
         const LOGO_URL = "https://raw.githubusercontent.com/Hsulala/u/main/LOGO.png";
         const PHONE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/phone.png";
         const EMAIL_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/mail.png"; // 修正網址（移除重複的 h）
+        const VERTICAL_BRAND_URL = "https://raw.githubusercontent.com/Hsulala/u/main/makarma_vertical.png";
         const LINE_ICON_URL = "https://raw.githubusercontent.com/Hsulala/u/main/lineid.png";
 
         // 【固定公司資訊】所有人共用，不用每次填
@@ -311,17 +312,13 @@
                                         ]
                                     },
                                     {
-                                        "type": "box",
-                                        "layout": "vertical",
+                                        "type": "image",
+                                        "url": VERTICAL_BRAND_URL,
+                                        "size": "40px",
+                                        "aspectRatio": "152:452",
+                                        "aspectMode": "fit",
                                         "flex": 1,
-                                        "contents": "MaKarma".split("").map((letter) => ({
-                                            "type": "text",
-                                            "text": letter,
-                                            "size": "sm",
-                                            "weight": "bold",
-                                            "color": "#F39800",
-                                            "align": "center"
-                                        }))
+                                        "gravity": "top"
                                     }
                                 ]
                             },
